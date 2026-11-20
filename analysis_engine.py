@@ -90,7 +90,13 @@ def read_report(body, detector=None):
     else:
         sentences = [match.span() for match in re.finditer(r"[^\n.!?]+(?:[.!?]+|(?=\n|$))", body)]
     mentions = {}
+    for match in rules.KNOWN_NAMES.finditer(body):
+        marker = PERSON_ID.match(body, match.end())
+        if marker and all(part[0].isupper() for part in match.group().split()):
+            mentions[match.span()] = ("Person", marker.group(1))
     for match in CAPITALS.finditer(body):
+        if any(start <= match.start() and match.end() <= end for start, end in mentions):
+            continue
         name = match.group()
         if " " not in name and not PERSON_ID.match(body, match.end()):
             continue
@@ -167,6 +173,15 @@ def extract(report, include_sentences=False, enhanced=True, reference_entities=N
                     continue
                 if enhanced and expanded:
                     matched = match_relation(prefix, between, suffix, left["type"], right["type"])
+                    if (not matched and coordinated and not prefix and not inherited
+                            and left["type"] == "Person" and not text.endswith("?")
+                            and rules.SELF_REPORT.match(between)):
+                        predicate = rules.SELF_REPORT.sub("", between, count=1)
+                        if rules.NEGATIVE.search(predicate) and not any(
+                            m["type"] == "Person" and m["name"].casefold() != left["name"].casefold()
+                            for m in mentions if m["start"] < left["start"]
+                        ):
+                            matched = match_relation("", predicate, suffix, left["type"], right["type"])
                 elif enhanced:
                     matched = rules.relationship(prefix, between)
                 else:
@@ -177,6 +192,9 @@ def extract(report, include_sentences=False, enhanced=True, reference_entities=N
                 kind, reverse = matched
                 source, target = (right, left) if reverse else (left, right)
                 if source["type"] != "Person" or target["type"] != ("Organisation" if kind == "Association" else "Person"):
+                    continue
+                if (coordinated and not target["marker"] and rules.VOICEMAIL_RECIPIENT.fullmatch(between)
+                        and rules.NONPERSON_RECIPIENT.search(target["name"])):
                     continue
                 status = clause_status
                 if coordinated and status == "Directly reported":

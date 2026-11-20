@@ -197,8 +197,8 @@ KNOWN_NONPERSON = re.compile(
     r"\b(?:authority|club|company|court|firm|guild|junction|lock|mill|museum|network|pier|"
     r"plaza|railway|station|university|wharf|works|yard)$", re.I
 )
-KNOWN_NAMES = re.compile(r"\b[^\W\d_a-z][^\W\d_]*(?:[’'-][^\W\d_]+)*"
-                         r"(?:[ \t]+[^\W\d_a-z][^\W\d_]*(?:[’'-][^\W\d_]+)*){1,3}\b")
+NAME_WORD = r"[^\W\d_a-z](?:[^\W\d_]|[\u0300-\u036f])*(?:[’'-][^\W\d_]+)*"
+KNOWN_NAMES = re.compile(rf"\b{NAME_WORD}(?:[ \t]+{NAME_WORD}){{1,3}}(?=\W|$)")
 GIVEN_WORD = re.compile(r"\b[^\W\d_a-z][^\W\d_]*(?:[’'-][^\W\d_]+)*\b")
 SURNAME_IDENTIFICATION = re.compile(
     r"\b(?P<short>[^\W\d_]+),?\s+(?:who\s+)?(?:is|was)\s+"
@@ -212,6 +212,14 @@ NAME_STOPWORDS = {"A", "An", "At", "By", "From", "The", "In", "On", "And", "To"}
 TIMED_CALL = re.compile(r"^(?:(?:reportedly|never|did not)\s+)?(?:later|subsequently|then)\s+(?:called|phoned|telephoned|call|phone)$", re.I)
 OFFICER_ROLE = re.compile(r"^as (?:one of the officers|an officer) of(?: the)?$", re.I)
 TOUR_OBSERVATION = re.compile(r"^\s+(?:for|during) (?:the |a |an )?(?:full |afternoon |morning )?tour\b", re.I)
+QUALIFIED_JOINT_MEETING = re.compile(
+    r"^\s+(?:may|might|could) (?:have met|meet)"
+    r"(?=\s*(?:[.!?,]|$)|\s+(?:at|in|near|on|after|before|during|yesterday|today|last|later|that|with each other)\b)",
+    re.I,
+)
+VOICEMAIL_RECIPIENT = re.compile(r"^" + MODIFIERS + r"left\s+(?:an?\s+)?voicemail\s+for$", re.I)
+NONPERSON_RECIPIENT = re.compile(r"\b(?:agency|clinic|desk|helpdesk|hotline|office|reception|team|theatre)$", re.I)
+SELF_REPORT = re.compile(r"^(?:says?|said|states?|stated)\s+(?:that\s+)?(?:he|she)\s+", re.I)
 
 
 OFFICE = r"(?:treasurer|secretary|president|chair|director|trustee|officer|member)"
@@ -267,6 +275,8 @@ def contextual_relationship(prefix, between, suffix, left_type, right_type):
             return "Communication", True
         if between.casefold() == "and" and TIME_TOGETHER.search(suffix) and not REMOTE_CONTACT.search(suffix):
             return "Meeting", False
+        if between.casefold() == "and" and QUALIFIED_JOINT_MEETING.match(suffix) and not REMOTE_CONTACT.search(suffix):
+            return "Meeting", False
     return None
 
 
@@ -294,13 +304,25 @@ def claim_clauses(body, start, end, entities, marker_pattern):
             if following:
                 obj = following[0]
                 head = marker_pattern.sub("", body[match.end():obj["start"]]).strip()
-                after = marker_pattern.sub("", body[obj["end"]:end]).lstrip()
+                after = marker_pattern.sub("", body[obj["end"]:end])
+                if (not head and index > first and obj["type"] == "Person"
+                        and entities[index - 1]["type"] == "Person"
+                        and QUALIFIED_JOINT_MEETING.match(after)):
+                    # Keep the two names together unless the left name already
+                    # belongs to a complete claim before the conjunction.
+                    if index - first == 1:
+                        continue
+                    prior, left = entities[index - 2:index]
+                    prefix = body[beginning:prior["start"]].rstrip()
+                    between = marker_pattern.sub("", body[prior["end"]:left["start"]]).strip()
+                    if not contextual_relationship(prefix, between, "", prior["type"], left["type"]):
+                        continue
                 if head:
                     new_clause = new_clause or contextual_relationship("", head, after, "Person", obj["type"])
                 elif index - first >= 2 or join:
                     # A second named subject can deny an unrelated action that
                     # has no extractable object of its own.
-                    new_clause = CLAUSE_AUXILIARY.match(after)
+                    new_clause = CLAUSE_AUXILIARY.match(after.lstrip())
                     if len(following) == 2 and not new_clause:
                         other = following[1]
                         predicate = marker_pattern.sub("", body[obj["end"]:other["start"]]).strip()
@@ -378,6 +400,11 @@ def contextual_mentions(body, sentences, mentions, marker_pattern):
             two_contact_names = ((between.casefold() == "to" and VOICEMAIL_FROM.search(prefix))
                                  or PASSIVE.fullmatch(between) or RECEIVED_CALL.fullmatch(between)
                                  or TIMED_CALL.fullmatch(between))
+            if VOICEMAIL_RECIPIENT.fullmatch(between):
+                two_contact_names = not any(
+                    NONPERSON_RECIPIENT.search(body[a:b]) or BUSINESS_HEAD.search(body[a:b])
+                    for a, b in (left, right)
+                )
             if two_contact_names and not any(nonperson(span) for span in (left, right)):
                 register_person(left)
                 register_person(right)
