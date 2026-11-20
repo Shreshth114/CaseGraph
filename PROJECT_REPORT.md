@@ -4,7 +4,21 @@
 
 Casegraph is an AI course prototype for exploring entities and reported relationships in investigative text. It links claims to their source, exposes uncertain and denied claims, and supports human review of proposed connections and identity merges.
 
-## Contextual relationship update
+## Current course release
+
+The frozen field set contains 16 fictional reports and 12 labeled relationships. On the same text and checkpoint, the previous extractor returned 7 correct, 0 extra and 5 missing relationships. The new rules returned 11 correct, 0 extra and 1 missing, for 100% precision, 91.7% recall and 95.7% F1. Results by type were 5/6 communications, 3/3 meetings and 3/3 affiliations. A voicemail involving Sofia Park was missed. The frozen texts and separate custody answer keys were written during implementation. Independent authoring and second-reviewer agreement remain outstanding.
+
+The earlier contextual set went from 13/17 to 17/17 after its errors informed changes. On those reports, the more conservative identity handling automatically linked 1/28 true mention pairs, previously 3/28. Automatic and proposed links together still covered 25/28, with 23 proposals to review. Repeated full names now have distinct mention-level records, explicit source IDs constrain merges and the inspector retains the supporting passages.
+
+| New fictional custody case | Expected | Observed | Evidence |
+|---|---|---|---|
+| KEY-21 | Prioritize Lila Hart | Lila Hart | Both expected custody citations matched. |
+| SEAL-8 | Abstain on a tie | Abstained | Both handlers had two independent citations. |
+| MTR-7 | Abstain after competing custody | Abstained | A second person's later receipt remained visible. |
+
+No case produced a wrong prioritization. These three controlled fixtures exercise decisions and citation handling. The live KIT-17 case remains a separate demonstration. Run `python -m validation.check` from the project environment to reproduce the measurements.
+
+## Earlier contextual relationship update
 
 The first fine-tuned test missed six claims. Three were recovered when the correct entity spans and types were supplied. The other three required coverage for membership recorded in a list, an addressed packet and a jointly described meeting.
 
@@ -19,6 +33,14 @@ The update recovers full person names in explicit voicemail and passive-call slo
 | Fresh retest F1 | 64.0% | 86.7% |
 
 The original set was inspected during development, so its 17 of 17 score is a regression result. The developer authored and annotated the 18 new fictional reports after freezing the rules and made no rule changes after scoring. The new set includes unrelated names and 17 labeled claims. Neither version produced a false relationship on it. Four claims remained missing. One involved an entity span or type error. The other three involved unsupported wording for an officer's affiliation, a jointly attended tour and a call with an intervening time adverb. The fresh result is two correct claims short of 15 of 17.
+
+## Lead Finder demonstration
+
+The Lead Finder uses five fictional KIT-17 reports. A controlled event parser captures checkout, receipt, handover and shift-record statements and retains each complete source sentence. The app compares activity for the selected item, location and time window. It counts distinct origins and custody events. A handover contributes custody support to the recipient. Unverified witness statements and contradictory shift records stay visible in the evidence.
+
+Before identity review, Dev Rao and D. Rao each have one custody record. An approved merge combines the evidence, making Dev Rao the strongest lead with two records and a last reported handover at 15:12. Clearing the merge restores the separate identities. Mira Sen's witness account remains reviewable with a shift record that places her elsewhere at the reported time. The fictional answer is stored separately and revealed on request.
+
+Automated checks exercise identity review and undo, source attribution, copied records, exact item and timing scope, ties, later competing custody, handover direction, and rejected evidence. This is a single-case demonstration of evidence prioritization.
 
 ## Fine-tuned NER pilot
 

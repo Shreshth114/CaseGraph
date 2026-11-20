@@ -1,0 +1,196 @@
+{
+  "base_commit": "8669194654dad28ff10a625948f9b7ef934e2ea5",
+  "sha256": {
+    "analysis_engine.py": "aa557af740763b2d2d59f3e9565f7f39a658a72f9167f67bebd48357eb8f3fcd",
+    "language_rules.py": "fc8585925b9ed3b73da47d2bc579114ab5f693d7a90ffd5cb7c73d92d8983c10",
+    "lead_finder.py": "6337af6bf5046e76f79a05178e97b281df0d054d798773ccb6bda84d5fb84488",
+    "training/run/model-best/ner/model": "3cef55280d2cff9f82b286e263166544b0048da135107864d4c1629e797df414",
+    "training/context_retest.py": "3f1f19503470f8102c032a91b609f32356786ad3e5f7c2533fc3fa33f6b235bc",
+    "validation/field_reports.json": "fa8c880fc7cc068eae5491a1a2f7cd300fe723095677aadb1b385b0256956a89",
+    "validation/custody_cases.json": "3dc09b14a0de35e10cbceff068c0ba3611313fec9b0d32a4e68cea6532def7de",
+    "validation/custody_keys.json": "707f4cf34bdf8e02c2e3f693ba2d43e60089263c907759a1134e1bc595205f03"
+  },
+  "context": {
+    "reports": 18,
+    "model": "Casegraph fine-tuned spaCy",
+    "ner": {
+      "precision": 0.8627450980392157,
+      "recall": 0.8627450980392157,
+      "f1": 0.8627450980392157,
+      "tp": 44,
+      "fp": 7,
+      "fn": 7
+    },
+    "people": {
+      "precision": 0.926829268292683,
+      "recall": 0.9047619047619048,
+      "f1": 0.9156626506024096,
+      "tp": 38,
+      "fp": 3,
+      "fn": 4
+    },
+    "relationships": {
+      "precision": 1.0,
+      "recall": 0.7647058823529411,
+      "f1": 0.8666666666666666,
+      "tp": 13,
+      "fp": 0,
+      "fn": 4
+    },
+    "identities": {
+      "precision": 1.0,
+      "recall": 0.10714285714285714,
+      "f1": 0.19354838709677416,
+      "tp": 3,
+      "fp": 0,
+      "fn": 25
+    },
+    "identity_coverage": {
+      "precision": 1.0,
+      "recall": 0.8928571428571429,
+      "f1": 0.9433962264150945,
+      "tp": 25,
+      "fp": 0,
+      "fn": 3
+    },
+    "types": {
+      "Communication": {
+        "precision": 1.0,
+        "recall": 0.9,
+        "f1": 0.9473684210526316,
+        "tp": 9,
+        "fp": 0,
+        "fn": 1
+      },
+      "Meeting": {
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571428571428571,
+        "tp": 3,
+        "fp": 0,
+        "fn": 1
+      },
+      "Association": {
+        "precision": 1.0,
+        "recall": 0.3333333333333333,
+        "f1": 0.5,
+        "tp": 1,
+        "fp": 0,
+        "fn": 2
+      }
+    }
+  },
+  "field": {
+    "reports": 16,
+    "model": "Casegraph fine-tuned spaCy",
+    "ner": {
+      "precision": 0.875,
+      "recall": 0.875,
+      "f1": 0.875,
+      "tp": 28,
+      "fp": 4,
+      "fn": 4
+    },
+    "people": {
+      "precision": 1.0,
+      "recall": 0.8928571428571429,
+      "f1": 0.9433962264150945,
+      "tp": 25,
+      "fp": 0,
+      "fn": 3
+    },
+    "relationships": {
+      "precision": 1.0,
+      "recall": 0.5833333333333334,
+      "f1": 0.7368421052631579,
+      "tp": 7,
+      "fp": 0,
+      "fn": 5
+    },
+    "identities": null,
+    "identity_coverage": null,
+    "types": {
+      "Communication": {
+        "precision": 1.0,
+        "recall": 0.5,
+        "f1": 0.6666666666666666,
+        "tp": 3,
+        "fp": 0,
+        "fn": 3
+      },
+      "Meeting": {
+        "precision": 1.0,
+        "recall": 0.6666666666666666,
+        "f1": 0.8,
+        "tp": 2,
+        "fp": 0,
+        "fn": 1
+      },
+      "Association": {
+        "precision": 1.0,
+        "recall": 0.6666666666666666,
+        "f1": 0.8,
+        "tp": 2,
+        "fp": 0,
+        "fn": 1
+      }
+    }
+  },
+  "kit17": {
+    "cards": [
+      {
+        "id": "P104",
+        "name": "D. Rao",
+        "names": [
+          "D. Rao"
+        ],
+        "count": 1,
+        "support": [
+          "LF-03:1:Holder"
+        ],
+        "other": [],
+        "conflicts": [],
+        "pending_matches": [
+          "m-73ee44f8fa3c5c523f3ff065"
+        ],
+        "latest": "15:12"
+      },
+      {
+        "id": "P102",
+        "name": "Dev Rao",
+        "names": [
+          "Dev Rao"
+        ],
+        "count": 1,
+        "support": [
+          "LF-02:1:Holder"
+        ],
+        "other": [],
+        "conflicts": [],
+        "pending_matches": [
+          "m-73ee44f8fa3c5c523f3ff065"
+        ],
+        "latest": "15:06"
+      },
+      {
+        "id": "P101",
+        "name": "Mira Sen",
+        "names": [
+          "Mira Sen"
+        ],
+        "count": 0,
+        "support": [],
+        "other": [
+          "LF-04:1:Holder"
+        ],
+        "conflicts": [
+          "LF-05:1:Attendance"
+        ],
+        "pending_matches": [],
+        "latest": null
+      }
+    ],
+    "strongest": null,
+    "reason": "Insufficient evidence to prioritize one lead."
+  }
+}

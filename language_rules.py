@@ -1,5 +1,6 @@
 """Conservative English patterns for explicitly reported relationship claims."""
 import re
+from bisect import bisect_left
 
 NAME = re.compile(r"\b[A-Z][a-z]+(?:[-'’][A-Z]?[a-z]+)*(?:[ \t]+[A-Z][a-z]+(?:[-'’][A-Z]?[a-z]+)*){1,3}\b")
 ORG_SUFFIX = re.compile(r"\b(?:associates|association|bank|cooperative|corporation|corp|council|department|"
@@ -208,21 +209,108 @@ HONORIFIC = re.compile(r"^(?:Mr|Mrs|Ms|Dr|Prof|Detective|Officer|Inspector)\s+")
 NAME_STOPWORDS = {"A", "An", "At", "By", "From", "The", "In", "On", "And", "To"}
 
 
+TIMED_CALL = re.compile(r"^(?:(?:reportedly|never|did not)\s+)?(?:later|subsequently|then)\s+(?:called|phoned|telephoned|call|phone)$", re.I)
+OFFICER_ROLE = re.compile(r"^as (?:one of the officers|an officer) of(?: the)?$", re.I)
+TOUR_OBSERVATION = re.compile(r"^\s+(?:for|during) (?:the |a |an )?(?:full |afternoon |morning )?tour\b", re.I)
+
+
+OFFICE = r"(?:treasurer|secretary|president|chair|director|trustee|officer|member)"
+RECORDED_OFFICE = re.compile(
+    rf"^(?:is|was) (?:not )?(?:listed|recorded|named) as (?:the |an? )?{OFFICE} of(?: the)?$", re.I)
+MEMBERSHIP = re.compile(
+    r"^(?:(?:has|had) (?:never|not) been|(?:is|was) (?:never|not)|"
+    r"den(?:ies|ied) being) (?:an? )?member of(?: the)?$", re.I)
+QUALIFIED_PAYROLL = re.compile(
+    r"^(?:may|might|could) (?:be|have been) on (?:the |its )?payroll (?:of|at)(?: the)?$", re.I)
+PAYROLL_HEADER = re.compile(r"\bpayroll (?:register|ledger|list|record) (?:at|of|for)(?: the)?$", re.I)
+PAYROLL_ENTRY = re.compile(
+    r"^\s+as (?:an? |the )?(?:driver|dispatcher|technician|clerk|operator|accountant|manager|employee)"
+    r"\s*(?:[.!?]\s*)?$", re.I)
+# Business descriptors support a type repair only inside an explicit affiliation.
+BUSINESS_HEAD = re.compile(r"\b(?:press|books|publishers|cartography|hydraulics|staging|works|guild)$", re.I)
+
+
+def contextual_affiliation(prefix, between, suffix):
+    """Identify an explicit affiliation and return whether the employer appears first."""
+    if (RECORDED_OFFICE.fullmatch(between) or MEMBERSHIP.fullmatch(between)
+            or QUALIFIED_PAYROLL.fullmatch(between)):
+        return "Association", False
+    if STAFF_PREFIX.search(prefix) and (
+            LISTED_MEMBER.fullmatch(between) or OFFICER_ROLE.fullmatch(between)
+            or re.fullmatch(r"as an? employee of(?: the)?", between, re.I)):
+        return "Association", False
+    if (PAYROLL_HEADER.search(prefix) and between.casefold() in {"lists", "listed", "names", "named"}
+            and PAYROLL_ENTRY.fullmatch(suffix)):
+        return "Association", True
+    return None
+
+
 def contextual_relationship(prefix, between, suffix, left_type, right_type):
     """Recognize explicit affiliation, addressing and in-person joint activity."""
     base = expanded_relationship(prefix, between, suffix, left_type, right_type)
     if base:
         return base
+    affiliation = contextual_affiliation(prefix, between, suffix)
+    if affiliation:
+        expected = ("Organisation", "Person") if affiliation[1] else ("Person", "Organisation")
+        if (left_type, right_type) == expected:
+            return affiliation
     if left_type != "Person":
         return None
-    if right_type == "Organisation" and STAFF_PREFIX.search(prefix) and LISTED_MEMBER.fullmatch(between):
-        return "Association", False
     if right_type == "Person":
+        if TIMED_CALL.fullmatch(between):
+            return "Communication", False
+        if (between.casefold() == "together with" and re.search(r"\b(?:saw|observed)$", prefix, re.I)
+                and TOUR_OBSERVATION.match(suffix) and not REMOTE_CONTACT.search(suffix)):
+            return "Meeting", False
         if between.casefold() == "by" and ADDRESSED_PACKET.search(prefix):
             return "Communication", True
         if between.casefold() == "and" and TIME_TOGETHER.search(suffix) and not REMOTE_CONTACT.search(suffix):
             return "Meeting", False
     return None
+
+
+# A conjunction between names can belong to one meeting or a name list.
+# Split plain "and" only when a new predicate or independent clause follows.
+COORDINATOR = re.compile(r";\s*|,?\s+\b(?:and|but|whereas)\s+|,\s*(?:while|however)\s+", re.I)
+CLAUSE_AUXILIARY = re.compile(r"^(?:did(?:n[’']t)?|does|has|had|was|were|is|are|never|may|might|could|would)\b", re.I)
+BARE_ACTION = re.compile(r"^(?:call|phone|meet|contact|text|work|join|send|leave|receive)\b", re.I)
+
+
+def claim_clauses(body, start, end, entities, marker_pattern):
+    """Return sentence spans and the conjunction introducing each claim scope."""
+    offsets = [e["start"] for e in entities]
+    beginning, join = start, ""
+    first = 0
+    for match in COORDINATOR.finditer(body, start, end):
+        word = match.group().strip().strip(",").strip().lower()
+        index = bisect_left(offsets, match.end())
+        if index and entities[index - 1]["end"] > match.start():
+            continue
+        if word == "and" and "," not in match.group():
+            tail = body[match.end():end]
+            following = entities[index:index + 2]
+            new_clause = CLAUSE_AUXILIARY.match(tail)
+            if following:
+                obj = following[0]
+                head = marker_pattern.sub("", body[match.end():obj["start"]]).strip()
+                after = marker_pattern.sub("", body[obj["end"]:end]).lstrip()
+                if head:
+                    new_clause = new_clause or contextual_relationship("", head, after, "Person", obj["type"])
+                elif index - first >= 2 or join:
+                    # A second named subject can deny an unrelated action that
+                    # has no extractable object of its own.
+                    new_clause = CLAUSE_AUXILIARY.match(after)
+                    if len(following) == 2 and not new_clause:
+                        other = following[1]
+                        predicate = marker_pattern.sub("", body[obj["end"]:other["start"]]).strip()
+                        new_clause = contextual_relationship("", predicate, body[other["end"]:end],
+                                                             obj["type"], other["type"])
+            if not new_clause:
+                continue
+        yield beginning, match.start(), join
+        beginning, first, join = match.end(), index, word
+    yield beginning, end, join
 
 
 def name_spans(body, start, end):
@@ -235,9 +323,13 @@ def name_spans(body, start, end):
 
 
 def contextual_mentions(body, sentences, mentions, marker_pattern):
-    """Repair clear contact slots and link unambiguous surname mentions locally."""
+    """Repair explicit contact and employer slots and resolve local surname references."""
     spans = {(item["start"], item["end"]): item.copy() for item in mentions}
     short_references = {}
+    for entity in spans.values():
+        if (not entity["marker"] and entity["name"].endswith(" Guild")
+                and re.search(r"\bmember of (?:the )?$", body[:entity["start"]], re.I)):
+            entity["type"] = "Organisation"
 
     def nonperson(span):
         name = body[span[0]:span[1]]
@@ -263,8 +355,29 @@ def contextual_mentions(body, sentences, mentions, marker_pattern):
         for left, right in zip(full_names, full_names[1:]):
             prefix = body[start:left[0]].rstrip()
             between = marker_pattern.sub("", body[left[1]:right[0]]).strip()
+            suffix = marker_pattern.sub("", body[right[1]:end])
+            affiliation = contextual_affiliation(prefix, between, suffix)
+            if not affiliation and (
+                (STAFF_PREFIX.search(prefix) and EMPLOYEE_ROLE.fullmatch(between))
+                or re.fullmatch(r"(?:is|was) employed by(?: the)?", between, re.I)
+            ):
+                affiliation = "Association", False
+            if affiliation:
+                person, employer = (right, left) if affiliation[1] else (left, right)
+                org = spans.get(employer)
+                employer_name = body[employer[0]:employer[1]]
+                # Occupations can name individual employers too. Require separate
+                # evidence of an organisation before correcting either endpoint.
+                if (org and not org["marker"] and not nonperson(person)
+                        and not BUSINESS_HEAD.search(body[person[0]:person[1]])
+                        and (org["type"] == "Organisation" or ORG_SUFFIX.search(employer_name)
+                             or BUSINESS_HEAD.search(employer_name))):
+                    if spans.get(person, {}).get("type") != "Organisation" or marker_pattern.match(body, person[1]):
+                        org["type"] = "Organisation"
+                        register_person(person)
             two_contact_names = ((between.casefold() == "to" and VOICEMAIL_FROM.search(prefix))
-                                 or PASSIVE.fullmatch(between) or RECEIVED_CALL.fullmatch(between))
+                                 or PASSIVE.fullmatch(between) or RECEIVED_CALL.fullmatch(between)
+                                 or TIMED_CALL.fullmatch(between))
             if two_contact_names and not any(nonperson(span) for span in (left, right)):
                 register_person(left)
                 register_person(right)

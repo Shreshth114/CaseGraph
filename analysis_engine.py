@@ -4,6 +4,7 @@ import json
 import os
 import re
 from collections import defaultdict
+from datetime import datetime
 from difflib import SequenceMatcher
 from functools import lru_cache
 from hashlib import sha256
@@ -24,7 +25,8 @@ import language_rules as rules
 ROOT = Path(__file__).resolve().parent
 PILOT_PATH = ROOT / "training" / "run" / "model-best"
 SELECTION_PATH = ROOT / "training" / "selection.json"
-PERSON_ID = re.compile(r"\s*\[(P[0-9]+)\]")
+RECORD_ID = re.compile(r"\[(P[0-9]+)\]")
+PERSON_ID = re.compile(r"\s*" + RECORD_ID.pattern)
 CAPITALS = re.compile(r"\b[A-Z][a-z]*(?:[-'][A-Z]?[a-z]+)?(?: +[A-Z][a-z]*(?:[-'][A-Z]?[a-z]+)?){0,3}\b")
 LABELS = {"PERSON": "Person", "ORG": "Organisation", "GPE": "Location", "LOC": "Location", "FAC": "Location"}
 ORG_ENDINGS = {"logistics", "transit", "cooperative", "services", "shipping", "foundation", "inc", "ltd", "university"}
@@ -34,7 +36,6 @@ PATTERNS = [
     ("Communication", r"(?:called|calls|phoned|phones|spoke by phone with)"),
     ("Association", r"(?:works? for|is listed as a member of|is a member of)"),
 ]
-CUE = re.compile(r"\b(?:" + "|".join(pattern for _, pattern in PATTERNS) + r")\s*$", re.I)
 DENIED = re.compile(r"\b(?:did not|never|denied|no evidence|didn't|ruled out)\b", re.I)
 HEDGED = re.compile(r"\b(?:alleg\w*|reportedly|according to|may|might|possibly|unconfirmed|witness|claimed|planned to|would|could|rumou?red|unclear|disputed|uncorroborated)\b", re.I)
 ALIAS = re.compile(r"^\s*,?\s*(?:also known as|aka|a\.k\.a\.)\s*$", re.I)
@@ -80,7 +81,10 @@ def load_detector(detector):
 def read_report(body, detector=None):
     nlp, _ = model(detector)
     has_ner = nlp is not None and nlp.has_pipe("ner")
-    doc = nlp(body) if nlp else None
+    # Keep character positions stable for citations. The original body still
+    # supplies identity markers when we attach them to the preceding names.
+    model_text = RECORD_ID.sub(lambda match: " " * len(match.group()), body)
+    doc = nlp(model_text) if nlp else None
     if doc is not None:
         sentences = [(sentence.start_char, sentence.end_char) for sentence in doc.sents]
     else:
@@ -106,6 +110,8 @@ def read_report(body, detector=None):
     if doc is not None:
         for ent in doc.ents:
             kind = LABELS.get(ent.label_)
+            if RECORD_ID.search(body, ent.start_char, ent.end_char):
+                continue
             if kind and not any(ent.start_char < end and ent.end_char > start for start, end in mentions):
                 marker = PERSON_ID.match(body, ent.end_char)
                 mentions[(ent.start_char, ent.end_char)] = ("Person" if marker else kind, marker.group(1) if marker else None)
@@ -125,45 +131,69 @@ def extract(report, include_sentences=False, enhanced=True, reference_entities=N
         if expanded and contextual:
             mentions = rules.contextual_mentions(body, sentences, mentions, PERSON_ID)
     claims, aliases = [], []
+    coordinated = enhanced and expanded and contextual
+    alias_cue = rules.ALIAS_CUE if enhanced else ALIAS
+    match_relation = rules.contextual_relationship if contextual else rules.expanded_relationship
     for start, end in sentences:
         text = body[start:end].strip()
         sentence_entities = [entity for entity in mentions if start <= entity["start"] < end]
-        clauses = [start + match.end() for match in rules.CLAUSE_BREAK.finditer(body[start:end])] if enhanced else []
-        for left, right in zip(sentence_entities, sentence_entities[1:]):
-            between = PERSON_ID.sub("", body[left["end"]:right["start"]]).strip()
-            alias_cue = rules.ALIAS_CUE if enhanced else ALIAS
-            if left["type"] == right["type"] == "Person" and alias_cue.fullmatch(between):
-                aliases.append((left, right, text))
-                continue
-            if left["type"] != "Person" and not (enhanced and expanded and left["type"] == "Organisation"):
-                continue
+        if coordinated:
+            scopes = rules.claim_clauses(body, start, end, sentence_entities, PERSON_ID)
+        else:
+            breaks = [m.end() for m in rules.CLAUSE_BREAK.finditer(body, start, end)] if enhanced else []
+            scopes = [(a, b, "") for a, b in zip([start, *breaks], [*breaks, end])]
+
+        subject = None
+        previous_status = ""
+        attributed = False
+        for begin, finish, join in scopes:
+            members = [entity for entity in sentence_entities if begin <= entity["start"] < finish]
+            pairs = [(a, b, a["end"], False) for a, b in zip(members, members[1:])]
+            if join in ("and", "but") and subject and members:
+                pairs.insert(0, (subject, members[0], begin, True))
+            subject = None
+            outer_attribution = attributed and join == "and"
+            attributed = False
             if enhanced:
-                clause_start = max([start] + [point for point in clauses if point <= left["start"]])
-                clause_end = min([end] + [point for point in clauses if point > left["start"]])
-                if right["start"] >= clause_end:
+                clause_status = rules.claim_status(body[begin:finish], documented_attribution=expanded)
+            else:
+                clause_status = "Denied" if DENIED.search(text) else "Unverified claim" if HEDGED.search(text) or text.endswith("?") else "Directly reported"
+            for left, right, verb_start, inherited in pairs:
+                between = PERSON_ID.sub("", body[verb_start:right["start"]]).strip()
+                prefix = "" if inherited else body[begin:left["start"]].rstrip()
+                suffix = PERSON_ID.sub("", body[right["end"]:finish])
+                if not inherited and left["type"] == right["type"] == "Person" and alias_cue.fullmatch(between):
+                    aliases.append((left, right, text))
                     continue
-                prefix = body[clause_start:left["start"]].rstrip()
-                if expanded:
-                    suffix = PERSON_ID.sub("", body[right["end"]:clause_end])
-                    relationship = rules.contextual_relationship if contextual else rules.expanded_relationship
-                    matched = relationship(prefix, between, suffix, left["type"], right["type"])
-                else:
+                if enhanced and expanded:
+                    matched = match_relation(prefix, between, suffix, left["type"], right["type"])
+                elif enhanced:
                     matched = rules.relationship(prefix, between)
+                else:
+                    matched = next(((kind, False) for kind, pattern in PATTERNS
+                                    if re.search(r"\b(?:" + pattern + r")$", between, re.I)), None)
                 if not matched:
                     continue
                 kind, reverse = matched
-                status = rules.claim_status(body[clause_start:clause_end], documented_attribution=expanded)
-            else:
-                if not CUE.search(between):
+                source, target = (right, left) if reverse else (left, right)
+                if source["type"] != "Person" or target["type"] != ("Organisation" if kind == "Association" else "Person"):
                     continue
-                kind = next(name for name, pattern in PATTERNS if re.search(r"\b(?:" + pattern + r")$", between, re.I))
-                reverse = False
-                status = "Denied" if DENIED.search(text) else "Unverified claim" if HEDGED.search(text) or text.endswith("?") else "Directly reported"
-            source, target = (right, left) if reverse else (left, right)
-            if source["type"] != "Person" or target["type"] != ("Organisation" if kind == "Association" else "Person"):
-                continue
-            claims.append(dict(source=source["start"], target=target["start"], type=kind, status=status,
-                               report=report["id"], sentence=text, offset=start))
+                status = clause_status
+                if coordinated and status == "Directly reported":
+                    if inherited and join == "and" and (rules.BARE_ACTION.match(between) or previous_status == "Unverified claim"):
+                        status = previous_status
+                    if status == "Directly reported" and (outer_attribution or text.endswith("?")):
+                        status = "Unverified claim"
+                claims.append(dict(source=source["start"], target=target["start"], type=kind, status=status,
+                                   report=report["id"], sentence=text, offset=start))
+                if coordinated:
+                    attributed = outer_attribution or rules.claim_status(prefix, documented_attribution=True) == "Unverified claim"
+                    # Only a verbal predicate supplies a grammatical subject for
+                    # a following action. A nominal "meeting between A and B" does not.
+                    if (right is members[-1] and not suffix.strip(" ,")
+                            and not re.search(r"\band$", prefix, re.I)
+                            and rules.contextual_relationship("", between, "", left["type"], right["type"])):
+                        subject, previous_status = left, status
     if include_sentences:
         evidence = [(start, end, body[start:end].strip()) for start, end in sentences]
         return mentions, claims, aliases, evidence
@@ -186,7 +216,12 @@ def graph_payload(nodes, edges):
         positions = nx.spring_layout(layout_graph, seed=42, weight=None)
     else:
         positions = nx.circular_layout(layout_graph)
-    payload = [dict(node, x=float(positions[key][0]), y=float(positions[key][1]), degree=graph.degree[key],
+    weights = defaultdict(int)
+    for edge in edges:
+        if "weight" in edge and edge["decision"] != "rejected" and edge["status"] == "Directly reported":
+            weights[edge["source"]] += edge["weight"]
+            weights[edge["target"]] += edge["weight"]
+    payload = [dict(node, activity_weight=weights[key], x=float(positions[key][0]), y=float(positions[key][1]), degree=graph.degree[key],
                     centrality=round(degree[key], 4), community=group_map.get(key))
                for key, node in nodes.items()]
     return dict(nodes=payload, edges=edges, communities=len(groups), model=model()[1])
@@ -258,7 +293,10 @@ def extract_network(reports, enhanced=True, expanded=True, detector=None, contex
         for mention in mentions:
             name = mention["name"].casefold()
             marker = mention["marker"]
-            ids[mention["start"]] = marker or f'{report["id"]}:{mention["type"]}:{name}'
+            local_id = f'{report["id"]}:{mention["type"]}:{name}'
+            if mention["type"] == "Person":
+                local_id = f'{report["id"]}:person:{mention["start"]}'
+            ids[mention["start"]] = marker or local_id
         for left, right, sentence in aliases:
             if left["marker"] and right["marker"] and left["marker"] != right["marker"]:
                 review.append(dict(report=report["id"], sentence=sentence, reason="Alias claim has conflicting record IDs"))
@@ -268,10 +306,7 @@ def extract_network(reports, enhanced=True, expanded=True, detector=None, contex
                 review.append(dict(report=report["id"], sentence=sentence, reason="Uncertain alias claim"))
                 continue
             resolution[chosen].append(dict(report=report["id"], sentence=sentence))
-            names = {left["name"].casefold(), right["name"].casefold()}
-            for mention in mentions:
-                if mention["type"] == "Person" and mention["name"].casefold() in names and not mention["marker"]:
-                    ids[mention["start"]] = chosen
+            ids[left["start"]] = ids[right["start"]] = chosen
         for mention in mentions:
             offset = mention["start"]
             if mention.get("ambiguous_surname"):
@@ -283,17 +318,22 @@ def extract_network(reports, enhanced=True, expanded=True, detector=None, contex
                 ids[offset] = ids[mention["antecedent"]]
             key = ids[offset]
             node = nodes.setdefault(key, dict(id=key, label=mention["name"], type=mention["type"], names=[], reports=[]))
+            if mention["marker"]:
+                node["record_id"] = mention["marker"]
             if mention["name"] not in node["names"]:
                 node["names"].append(mention["name"])
             if report["id"] not in node["reports"]:
                 node["reports"].append(report["id"])
-                sentence = next((text for start, end, text in evidence_sentences if start <= mention["start"] < end), "")
-                node.setdefault("identity_evidence", []).append(dict(report=report["id"], sentence=sentence))
+            sentence = next((text for start, end, text in evidence_sentences if start <= offset < end), "")
+            node.setdefault("identity_evidence", []).append(dict(report=report["id"], start=offset,
+                                                              end=mention["end"], sentence=sentence))
             mention_nodes[(report["id"], mention["start"], mention["end"], mention["type"])] = key
         for claim in claims:
             source, target = ids[claim["source"]], ids[claim["target"]]
             if source != target:
-                edges.append(dict(claim, source=source, target=target, id=f"e{len(edges)}"))
+                key = (report["id"], claim["source"], claim["target"], claim["type"], claim["status"])
+                edges.append(dict(claim, source=source, target=target, source_offset=claim["source"],
+                                  target_offset=claim["target"], id="claim-" + evidence_hash(key)[:24]))
     if enhanced:
         review = identity_candidates(nodes, edges, review)
     else:
@@ -320,7 +360,19 @@ def extract_network(reports, enhanced=True, expanded=True, detector=None, contex
             nodes[key]["aliases"] = evidence
     return nodes, edges, review, mention_nodes
 
-def reviewed_graph(nodes, edges, review, reports, decisions=()):
+def evidence_hash(value):
+    data = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return sha256(data.encode("utf-8")).hexdigest()
+
+
+def network_version(nodes, edges, review, reports):
+    return evidence_hash(["network-extraction-v2", reports, nodes, edges, review, model()[1]])
+
+
+def reviewed_graph(nodes, edges, review, reports, decisions=(), *, source_version=None, expected_version=None):
+    source_version = source_version or network_version(nodes, edges, review, reports)
+    if expected_version is not None and source_version != expected_version:
+        raise ValueError("Source or extraction version changed. Saved decisions require a new review.")
     suggestions = {}
     notices = []
     for item in review:
@@ -346,7 +398,17 @@ def reviewed_graph(nodes, edges, review, reports, decisions=()):
         if choice not in ("accepted", "rejected", "cleared"):
             raise ValueError("A review decision must be accepted, rejected, or cleared.")
         latest[item["target"]] = choice
-        history.append(dict(target=item["target"], decision=choice))
+        action = dict(target=item["target"], decision=choice)
+        if "at" in item:
+            if not isinstance(item["at"], str) or len(item["at"]) > 40:
+                raise ValueError("Invalid review timestamp.")
+            datetime.fromisoformat(item["at"])
+            action["at"] = item["at"]
+        if "note" in item:
+            if not isinstance(item["note"], str) or len(item["note"]) > 300:
+                raise ValueError("Review notes must fit in 300 characters.")
+            action["note"] = item["note"]
+        history.append(action)
 
     accepted = nx.Graph()
     accepted.add_nodes_from(nodes)
@@ -354,7 +416,13 @@ def reviewed_graph(nodes, edges, review, reports, decisions=()):
         proposal["decision"] = latest.get(key, "cleared")
         if proposal["decision"] == "accepted":
             accepted.add_edge(*(record["id"] for record in proposal["records"]))
-    canonical = {key: min(group) for group in nx.connected_components(accepted) for key in group}
+    canonical = {}
+    for group in nx.connected_components(accepted):
+        markers = {nodes[key]["record_id"] for key in group if nodes[key].get("record_id")}
+        if len(markers) > 1:
+            raise ValueError("The proposed merge conflicts with distinct explicit person IDs.")
+        root = next(iter(markers)) if markers else min(group)
+        canonical.update(dict.fromkeys(group, root))
     for proposal in suggestions.values():
         a, b = (canonical[record["id"]] for record in proposal["records"])
         if proposal["decision"] == "rejected" and a == b:
@@ -376,12 +444,23 @@ def reviewed_graph(nodes, edges, review, reports, decisions=()):
              decision=latest.get(edge["id"], "cleared"))
         for edge in edges
     ]
-    return dict(graph_payload(merged, reviewed_edges), review=notices + list(suggestions.values()),
+    return dict(graph_payload(merged, reviewed_edges), source_version=source_version,
+                review=notices + list(suggestions.values()),
                 reports=reports, decisions=history)
 
-def analyze(reports, decisions=()):
-    nodes, edges, review, _ = extract_network(reports)
-    return reviewed_graph(nodes, edges, review, reports, decisions)
+@lru_cache(maxsize=8)
+def prepared_text_evidence(serialized_reports, detector):
+    """Keep original evidence for recent batches in process memory. Exclude review decisions."""
+    reports = json.loads(serialized_reports)
+    nodes, edges, review, _ = extract_network(reports, detector=detector)
+    return nodes, edges, review, network_version(nodes, edges, review, reports)
+
+
+def analyze(reports, decisions=(), *, expected_version=None):
+    key = json.dumps(reports, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    nodes, edges, review, version = prepared_text_evidence(key, active_detector())
+    return reviewed_graph(nodes, edges, review, reports, decisions, source_version=version,
+                          expected_version=expected_version)
 
 @lru_cache(maxsize=1)
 def montagna_records():
@@ -402,9 +481,9 @@ def montagna_records():
                                   report=filename, sentence=f"Row {line} · {a}, {b}, weight {weight}", weight=int(weight)))
     return nodes, edges
 
-def montagna(decisions=()):
+def montagna(decisions=(), *, expected_version=None):
     nodes, edges = montagna_records()
-    return reviewed_graph(nodes, edges, [], [], decisions)
+    return reviewed_graph(nodes, edges, [], [], decisions, expected_version=expected_version)
 
 def metrics(expected, predicted):
     tp = len(expected & predicted)

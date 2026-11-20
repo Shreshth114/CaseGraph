@@ -1,0 +1,119 @@
+[
+  {
+    "id": "key",
+    "title": "KEY-21 custody review",
+    "item": "KEY-21",
+    "location": "library desk",
+    "date": "2026-10-04",
+    "question": "Who last handled KEY-21?",
+    "window": {
+      "start": "09:00",
+      "end": "09:20"
+    },
+    "reports": [
+      {
+        "id": "incident",
+        "name": "Incident note",
+        "origin": "Desk supervisor",
+        "text": "The desk requests a custody review for KEY-21.",
+        "kind": "context"
+      },
+      {
+        "id": "D1",
+        "name": "Issue register",
+        "origin": "Issue register",
+        "text": "At 09:02, Lila Hart [P1] checked out KEY-21 at the library desk."
+      },
+      {
+        "id": "D2",
+        "name": "Desk receipt",
+        "origin": "Desk receipt",
+        "text": "At 09:12, Lila Hart [P1] received KEY-21 at the library desk."
+      }
+    ]
+  },
+  {
+    "id": "seal",
+    "title": "SEAL-8 custody review",
+    "item": "SEAL-8",
+    "location": "archive desk",
+    "date": "2026-10-04",
+    "question": "Who last handled SEAL-8?",
+    "window": {
+      "start": "09:00",
+      "end": "09:20"
+    },
+    "reports": [
+      {
+        "id": "incident",
+        "name": "Incident note",
+        "origin": "Desk supervisor",
+        "text": "The desk requests a custody review for SEAL-8.",
+        "kind": "context"
+      },
+      {
+        "id": "D1",
+        "name": "Issue register",
+        "origin": "Issue register",
+        "text": "At 09:01, Amir Snow [P1] checked out SEAL-8 at the archive desk."
+      },
+      {
+        "id": "D2",
+        "name": "Desk receipt",
+        "origin": "Desk receipt",
+        "text": "At 09:03, Tara Dove [P2] received SEAL-8 at the archive desk."
+      },
+      {
+        "id": "D3",
+        "name": "Transfer ledger",
+        "origin": "Transfer ledger",
+        "text": "At 09:06, Amir Snow [P1] received SEAL-8 at the archive desk."
+      },
+      {
+        "id": "D4",
+        "name": "Collection slip",
+        "origin": "Collection slip",
+        "text": "At 09:10, Tara Dove [P2] received SEAL-8 at the archive desk."
+      }
+    ]
+  },
+  {
+    "id": "meter",
+    "title": "MTR-7 custody review",
+    "item": "MTR-7",
+    "location": "stores desk",
+    "date": "2026-10-04",
+    "question": "Who last handled MTR-7?",
+    "window": {
+      "start": "09:00",
+      "end": "09:20"
+    },
+    "reports": [
+      {
+        "id": "incident",
+        "name": "Incident note",
+        "origin": "Desk supervisor",
+        "text": "The desk requests a custody review for MTR-7.",
+        "kind": "context"
+      },
+      {
+        "id": "D1",
+        "name": "Issue register",
+        "origin": "Issue register",
+        "text": "At 09:02, Ona Price [P1] checked out MTR-7 at the stores desk."
+      },
+      {
+        "id": "D2",
+        "name": "Desk receipt",
+        "origin": "Desk receipt",
+        "text": "At 09:04, Ona Price [P1] received MTR-7 at the stores desk."
+      },
+      {
+        "id": "D3",
+        "name": "Transfer ledger",
+        "origin": "Transfer ledger",
+        "text": "At 09:15, Ben Dale [P2] received MTR-7 at the stores desk."
+      }
+    ]
+  }
+]

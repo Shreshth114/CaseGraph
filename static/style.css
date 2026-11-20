@@ -11,3 +11,15 @@ footer{display:flex;gap:.6rem 1.5rem;flex-wrap:wrap;padding:1rem 4%;color:var(--
 .review-card{padding:.75rem;border:1px solid var(--border);border-radius:8px;margin-bottom:.75rem}.review-card p{margin:.4rem 0}
 .review-card blockquote{margin:.3rem 0;font-size:.875rem}
 .review-actions{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0}.review-actions button{font-size:.875rem}
+.item-key{background:#91bdff}
+.lead-question{margin:.55rem 0 .15rem}
+.lead-brief{margin:.5rem 0 1rem;color:var(--muted)}
+.lead-brief summary{cursor:pointer}
+.lead-result{margin:.9rem 0;color:var(--accent);font-weight:700}
+.lead-highlight{border-color:var(--accent)}
+.lead-highlight .caption{margin-bottom:.5rem}
+.review-card h4{font-size:.875rem;margin:.8rem 0 .35rem}
+.lead-answer{border-left:3px solid var(--accent)}
+.case-files {display:flex;gap:.5rem;flex-wrap:wrap}
+.review-actions input {width:100%;min-width:0}
+#details select {display:block;max-width:100%;width:100%;margin:.3rem 0 .75rem}
