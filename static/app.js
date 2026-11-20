@@ -1,7 +1,10 @@
 const byId = id => document.getElementById(id);
 const canvas = byId("graph");
 const ctx = canvas.getContext("2d");
-const colors = { Person: "#68e0cd", Organisation: "#d1a6ff", Location: "#f4cd86", Item: "#91bdff" };
+const colors = { Person: "#8fe6cb", Organisation: "#c7a8fa", Location: "#f4cb81", Item: "#96baf8" };
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const filter = byId("filter");
+const relationshipSelect = styleSelect(filter, byId("filter-label"));
 const views = {
   demo: ["Fictional report network", "Explore 36 fictional reports with labeled identities and relationship examples."],
   benchmark: ["Hand-written report network", "Review report evidence and candidate identities without preassigned record IDs."],
@@ -10,8 +13,8 @@ const views = {
   custom: ["Uploaded report network", "Review extracted entities and the sentences that support each finding."],
   evaluation: ["Extraction evaluation", "Precision, recall, and F1 on held-out fictional reports."]
 };
-let data, nodes, view, panel = "entities", selected, requestNumber = 0;
-let zoom = 1, pan = [0, 0], drag;
+let data, nodes, mapLayout, view, panel = "entities", selected, requestNumber = 0;
+let zoom = 1, pan = [0, 0], drag, hovered, zoomFrame;
 const cases = new Map();
 let reviewing = false;
 let revealedLeadAnswer = null;
@@ -21,6 +24,18 @@ function element(tag, text, cls) {
   if (text !== undefined) node.textContent = text;
   if (cls) node.className = cls;
   return node;
+}
+function setStatus(id, text, busy = false) {
+  const status = byId(id);
+  status.textContent = text;
+  status.toggleAttribute("data-busy", busy);
+}
+function reveal(element, distance = 5) {
+  if (!reducedMotion.matches) {
+    for (const animation of element.getAnimations()) animation.cancel();
+    element.animate([{ opacity: .55, transform: "translateY(" + distance + "px)" }, { opacity: 1, transform: "none" }],
+      { duration: 205, easing: "cubic-bezier(.2,.65,.3,1)" });
+  }
 }
 function button(text, action, subtitle) {
   const node = element("button", text, "item");
@@ -43,6 +58,7 @@ async function fetchJSON(url, options) {
   return value;
 }
 function setHeading(next) {
+  closeSelectMenu();
   view = next;
   byId("save-case").disabled = next === "evaluation";
   byId("title").textContent = views[next][0];
@@ -55,28 +71,42 @@ function setHeading(next) {
   byId("item-key").hidden = next !== "lead";
   byId("evaluation").hidden = next !== "evaluation";
 }
+function installGraph(result) {
+  data = result;
+  nodes = new Map(result.nodes.map(node => [node.id, node]));
+  mapLayout = prepareMap(result.nodes, result.edges);
+  hovered = null;
+  canvas.removeAttribute("data-hover");
+}
 function showGraph(next, result) {
   cases.set(next, result);
   if (next === "custom") document.querySelector('[data-view="custom"]').hidden = false;
-  data = result;
+  installGraph(result);
   pathEnds = [];
   byId("weighted").checked = false;
-  nodes = new Map(result.nodes.map(node => [node.id, node]));
   selected = null;
   panel = next === "lead" ? "leads" : "entities";
   byId("search").value = "";
-  const types = next === "lead" ? [...new Set(result.edges.map(edge => edge.type))] : ["Meeting", "Communication", "Association"];
-  byId("filter").replaceChildren(...[["", "All types"], ...types.map(type => [type, type])].map(([value, label]) => {
-    const option = element("option", label);
-    option.value = value;
-    return option;
-  }));
+  const types = [...new Set(result.edges.map(edge => edge.type))];
+  filter.replaceChildren(new Option("All types", ""), ...types.map(type => new Option(type, type)));
+  relationshipSelect.sync();
+  byId("graph-empty").hidden = result.nodes.length > 0;
   setHeading(next);
   byId("model").textContent = next === "montagna" ? "Source · Montagna Operation / Zenodo" : result.model;
-  byId("status").textContent = result.nodes.length ? "" : "No entities were extracted from these reports.";
+  setStatus("status", "");
   stats([["Entities", result.nodes.length], ["Evidence rows", result.edges.length], ["Communities", result.communities]]);
-  reset();
+  setCamera(1, [0, 0]);
   inspect();
+  byId("details").scrollTop = 0;
+  reveal(canvas, 0);
+  const light = document.querySelector(".map-light");
+  light.getAnimations().forEach(animation => animation.cancel());
+  if (result.nodes.length && !reducedMotion.matches) {
+    light.animate([{ transform: "translateX(-50%)", opacity: 0 },
+      { opacity: .9, offset: .45 }, { transform: "translateX(50%)", opacity: 0 }],
+      { duration: 1500, easing: "ease-in-out" });
+  }
+  reveal(document.querySelector(".intro-copy"));
 }
 function stats(values) {
   byId("stats").replaceChildren(...values.map(([label, value]) => {
@@ -88,14 +118,14 @@ function stats(values) {
 async function load(next) {
   const token = ++requestNumber;
   if (cases.has(next)) return showGraph(next, cases.get(next));
-  byId("status").textContent = "Loading…";
+  setStatus("status", "Loading…", true);
   try {
     const result = await fetchJSON("/api/" + next);
     if (token !== requestNumber) return;
     if (next !== "evaluation") return showGraph(next, result);
     setHeading(next);
     stats([["Field reports", result.release.field.current.reports], ["Custody cases", result.release.custody.length]]);
-    byId("status").textContent = "";
+    setStatus("status", "");
     const active = result.training.selected === "pilot" ? result.training.pilot : result.training.pretrained;
     byId("model").textContent = "Active detector · " + active.model;
     const contextualBefore = scoreTable("Known contextual cases · Earlier rules", result.contextual.before);
@@ -133,9 +163,10 @@ async function load(next) {
       regression, pretrained, fineTuned,
       element("p", "Both models use the same relationship and identity rules on the final NER test. Entity scoring matches exact spans and types. Relationship scoring matches both mention offsets, type and status.", "muted"),
       previous, updated, diagnostic, diagnosis, templates);
+    reveal(byId("evaluation"));
 
   } catch (error) {
-    if (token === requestNumber) byId("status").textContent = error.message;
+    if (token === requestNumber) setStatus("status", error.message);
   }
 }
 function scoreTable(title, result) {
@@ -149,13 +180,26 @@ function metricsTable(title, scores) {
   const section = element("section", undefined, "score-section");
   const table = element("table");
   const header = table.createTHead().insertRow();
-  for (const heading of ["Task", "Precision", "Recall", "F1", "TP", "FP", "FN"]) header.append(element("th", heading));
-  for (const [label, row] of scores) {
-    const tr = table.insertRow();
-    const values = [label, ...[row.precision, row.recall, row.f1].map(value => (100 * value).toFixed(1) + "%"), row.tp, row.fp, row.fn];
-    for (const value of values) tr.insertCell().textContent = value;
+  for (const heading of ["Task", "Precision", "Recall", "F1", "TP", "FP", "FN"]) {
+    const cell = element("th", heading);
+    cell.scope = "col";
+    header.append(cell);
   }
-  section.append(element("h2", title), table);
+  const body = table.createTBody();
+  for (const [label, row] of scores) {
+    const tr = body.insertRow();
+    const cell = element("th", label);
+    cell.scope = "row";
+    tr.append(cell);
+    for (const value of [row.precision, row.recall, row.f1]) tr.insertCell().textContent = (100 * value).toFixed(1) + "%";
+    for (const value of [row.tp, row.fp, row.fn]) tr.insertCell().textContent = value;
+  }
+  const scroll = element("div", undefined, "table-wrap");
+  scroll.tabIndex = 0;
+  scroll.setAttribute("role", "region");
+  scroll.setAttribute("aria-label", title);
+  scroll.append(table);
+  section.append(element("h2", title), scroll);
   return section;
 }
 
@@ -178,7 +222,7 @@ async function decide(target, decision, note) {
   if (reviewing) return;
   reviewing = true;
   const caseView = view, original = data;
-  byId("status").textContent = "Saving review…";
+  setStatus("status", "Saving review…", true);
   inspect();
   try {
     const result = await fetchJSON("/api/review", {
@@ -189,14 +233,13 @@ async function decide(target, decision, note) {
     if (cases.get(caseView) !== original) return;
     cases.set(caseView, result);
     if (view !== caseView) return;
-    data = result;
-    nodes = new Map(result.nodes.map(node => [node.id, node]));
+    installGraph(result);
     if (selected?.type === "edge") selected.value = result.edges.find(edge => edge.id === selected.value.id);
     if (selected?.type === "node") selected = null;
     stats([["Entities", result.nodes.length], ["Evidence rows", result.edges.length], ["Communities", result.communities]]);
-    byId("status").textContent = "Review decision recorded.";
+    setStatus("status", "Review decision recorded.");
   } catch (error) {
-    if (view === caseView) byId("status").textContent = error.message;
+    if (view === caseView) setStatus("status", error.message);
   } finally {
     reviewing = false;
     if (view !== "evaluation") { inspect(); draw(); }
@@ -228,26 +271,52 @@ function matches(node) {
   return [node.id, ...node.names].some(value => value.toLowerCase().includes(term));
 }
 function visibleEdges() {
-  const kind = byId("filter").value;
+  const kind = filter.value;
   return data.edges.filter(edge => (!kind || edge.type === kind)
     && (matches(nodes.get(edge.source)) || matches(nodes.get(edge.target))));
 }
 function related(edge, id) {
   return edge.source === id || edge.target === id;
 }
+function clearSelection() {
+  selected = null;
+  hovered = null;
+  canvas.removeAttribute("data-hover");
+  inspect();
+  draw();
+}
 function select(type, value) {
   selected = { type, value };
   inspect();
+  byId("details").scrollTop = 0;
+  scrollToDetails();
   draw();
+  if (type === "node" && !reducedMotion.matches) {
+    const ring = byId("focus-ring");
+    ring.getAnimations().forEach(animation => animation.cancel());
+    ring.animate([{ transform: "scale(.45)", opacity: .85 }, { transform: "scale(1.65)", opacity: 0 }],
+      { duration: 650, easing: "ease-out" });
+  }
+}
+function scrollToDetails() {
+  const inspector = document.querySelector(".inspector");
+  if (matchMedia("(max-width: 760px)").matches && inspector.getBoundingClientRect().top > innerHeight - 85) {
+    inspector.scrollIntoView({ behavior: reducedMotion.matches ? "instant" : "smooth", block: "start" });
+  }
 }
 function edgeButton(edge) {
   return button(nodes.get(edge.source).label + " · " + nodes.get(edge.target).label,
     () => select("edge", edge), edge.type + " · " + edge.status + (edge.decision !== "cleared" ? " · " + decisionLabel(edge.decision) : ""));
 }
 function openPanel(next) {
+  if (next === "chat" && selected?.type === "edge") {
+    caseChat(data).edge = selected.value.id;
+  }
   panel = next;
   selected = null;
   inspect();
+  byId("details").scrollTop = 0;
+  reveal(byId("details"), 0);
   draw();
 }
 
@@ -338,6 +407,7 @@ function inspectPath(box) {
     element("p", "Paths use directly reported, unrejected links in either direction. Open each row to inspect the original endpoints.", "caption"));
   const choices = [...nodes.values()].sort((a, b) => a.label.localeCompare(b.label));
   for (const [i, label] of ["From", "To"].entries()) {
+    const field = element("div", undefined, "path-field");
     const selectNode = element("select");
     selectNode.id = "path-end-" + i;
     const caption = element("label", label);
@@ -345,8 +415,14 @@ function inspectPath(box) {
     selectNode.append(new Option("Choose entity", ""));
     for (const node of choices) selectNode.append(new Option(node.label + " · " + node.id, node.id));
     selectNode.value = pathEnds[i] || "";
-    selectNode.onchange = () => { pathEnds[i] = selectNode.value; inspect(); };
-    box.append(caption, selectNode);
+    field.append(caption, selectNode);
+    box.append(field);
+    const { trigger } = styleSelect(selectNode, caption);
+    selectNode.onchange = () => {
+      pathEnds[i] = selectNode.value;
+      inspect();
+      byId(trigger.id).focus({ preventScroll: true });
+    };
   }
   const [start, end] = pathEnds;
   if (!nodes.has(start) || !nodes.has(end)) return;
@@ -381,10 +457,18 @@ function inspectPath(box) {
 
 function inspect() {
   const box = byId("details");
+  const scrolled = box.scrollTop;
+  if (openSelect && box.contains(openSelect.trigger)) closeSelectMenu();
   box.replaceChildren();
   byId("clear").hidden = !selected;
   toggleActive("[data-panel]", "panel", panel);
   if (!data) return;
+  if (selected?.type === "report") {
+    const report = selected.value;
+    box.append(element("h3", report.name || "Source report"), element("p", report.id, "caption"),
+      element("pre", report.text));
+    return;
+  }
   if (selected?.type === "edge") {
     const edge = selected.value;
     const badge = element("p", edge.status, "badge " + (edge.status === "Denied" ? "deny" : edge.status === "Unverified claim" ? "warn" : ""));
@@ -429,8 +513,11 @@ function inspect() {
     inspectTimeline(box);
   } else if (panel === "paths") {
     inspectPath(box);
+  } else if (panel === "chat") {
+    box.append(caseChat(data).root);
   } else if (panel === "evidence") {
     const edges = visibleEdges();
+    if (edges.length) box.append(element("p", edges.length + " evidence rows", "item-count"));
     box.append(...edges.map(edgeButton));
     if (!edges.length) box.append(element("p", "No matching relationship evidence.", "muted"));
   } else if (panel === "review") {
@@ -476,61 +563,211 @@ function inspect() {
     if (!data.review.length) box.append(element("p", "No identity conflicts were flagged.", "muted"));
   } else {
     const items = data.nodes.filter(matches).sort((a, b) => b.degree - a.degree || a.label.localeCompare(b.label));
+    if (items.length) box.append(element("p", items.length + (items.length === 1 ? " entity" : " entities"), "item-count"));
     box.append(...items.map(node => button(node.label, () => select("node", node), node.type + " · Degree " + node.degree)));
     if (!items.length) box.append(element("p", "No matching entities.", "muted"));
   }
+  if (panel === "paths") box.scrollTop = scrolled;
 }
 function point(node) {
   const w = canvas.clientWidth, h = canvas.clientHeight;
-  return [w / 2 + node.x * w * .43 * zoom + pan[0], h / 2 + node.y * h * .43 * zoom + pan[1]];
+  const p = mapLayout.positions.get(node.id) || node;
+  return [w / 2 + p.x * w * .43 * zoom + pan[0], h / 2 + p.y * h * .43 * zoom + pan[1]];
 }
 function edgePoints(edge) {
   return [point(nodes.get(edge.source)), point(nodes.get(edge.target))];
 }
+function nodeSize(node) {
+  return 3.4 + (node.degree ? 1.3 : 0) + (view === "montagna" && byId("weighted").checked
+    ? Math.min(Math.sqrt(node.activity_weight), 16) : Math.min(node.degree, 10) / 3);
+}
+function nodeAt(x, y) {
+  let closest, distance = Infinity;
+  for (const node of data.nodes) {
+    const [nx, ny] = point(node);
+    const d = Math.hypot(nx - x, ny - y);
+    if (d <= Math.max(8, nodeSize(node) + 2) && d <= distance) {
+      closest = node;
+      distance = d;
+    }
+  }
+  return closest;
+}
 function draw() {
   if (!data || canvas.offsetParent === null) return;
   const w = canvas.clientWidth, h = canvas.clientHeight, scale = window.devicePixelRatio || 1;
-  canvas.width = w * scale;
-  canvas.height = h * scale;
-  ctx.scale(scale, scale);
-  ctx.fillStyle = "#203247";
-  for (let x = 12; x < w; x += 24) for (let y = 12; y < h; y += 24) ctx.fillRect(x, y, 1.4, 1.4);
+  const width = Math.round(w * scale), height = Math.round(h * scale);
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== height) canvas.height = height;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const focusNode = selected?.type === "node" ? nodes.get(selected.value.id) : selected ? null : hovered;
+  const focusEdge = selected?.type === "edge" ? selected.value : null;
+  const hasFocus = Boolean(focusNode || focusEdge);
+  const neighborhood = new Set(focusNode ? [focusNode.id] : []);
+  const search = Boolean(byId("search").value.trim());
   for (const edge of visibleEdges()) {
     if (edge.decision === "rejected") continue;
     const [[x, y], [tx, ty]] = edgePoints(edge);
-    const focused = selected?.type === "edge" ? selected.value.id === edge.id :
-      selected?.type === "node" && related(edge, selected.value.id);
-    ctx.strokeStyle = edge.status === "Denied" ? "#f495a4" : edge.status === "Unverified claim" ? "#f4cd86" : "#819eb9";
-    ctx.globalAlpha = focused ? 1 : selected ? .22 : .57;
-    ctx.lineWidth = focused ? 2.7 : 1;
+    const focused = focusEdge ? focusEdge.id === edge.id : focusNode && related(edge, focusNode.id);
+    if (focused) {
+      neighborhood.add(edge.source);
+      neighborhood.add(edge.target);
+    }
+    ctx.strokeStyle = edge.status === "Denied" ? "#faa3b4" : edge.status === "Unverified claim" ? "#efcc8a" : "#b1c3cf";
+    ctx.globalAlpha = focused ? 1 : hasFocus ? .16 : .67;
+    ctx.lineWidth = focused ? 2 : 1.25;
     ctx.setLineDash(edge.status === "Denied" ? [1, 4] : edge.status === "Unverified claim" ? [5, 4] : []);
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(tx, ty);
     ctx.stroke();
   }
+  ctx.setLineDash([]);
+  const spotlight = byId("map-spotlight");
+  spotlight.classList.toggle("visible", Boolean(focusNode));
+  if (focusNode) {
+    const [x, y] = point(focusNode);
+    spotlight.style.transform = "translate(" + x + "px, " + y + "px)";
+    spotlight.style.color = colors[focusNode.type];
+  }
+  const ring = byId("focus-ring");
+  ring.hidden = selected?.type !== "node" || !focusNode;
+  const marks = new Map();
   for (const node of data.nodes) {
     const [x, y] = point(node);
-    const focused = selected?.type === "node" && selected.value.id === node.id;
-    ctx.globalAlpha = matches(node) ? 1 : .18;
-    ctx.fillStyle = colors[node.type];
+    const radius = nodeSize(node);
+    const color = colors[node.type] || "#b1c3cf";
+    const active = node === focusNode;
+    if (active && !ring.hidden) {
+      ring.style.left = x + "px";
+      ring.style.top = y + "px";
+      ring.style.color = color;
+    }
+    if (x < -radius || x > w + radius || y < -radius || y > h + radius) continue;
+    const near = neighborhood.has(node.id);
+    const matched = !search || matches(node);
+    const opacity = (matched || near) && (!hasFocus || near) ? 1 : .22;
+    marks.set(node.id, { x, y, radius, near, matched });
+    if (node.degree || near) {
+      ctx.globalAlpha = opacity * (near ? .23 : .12);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, radius + (near ? 6 : 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = color;
     ctx.beginPath();
-    const size = view === "montagna" && byId("weighted").checked
-      ? Math.min(Math.sqrt(node.activity_weight), 18) : Math.min(node.degree, 10) / 3;
-    ctx.arc(x, y, (focused ? 7 : 4) + size, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
-    if (focused || zoom > 1.45 || (data.nodes.length <= 45) || (byId("search").value && matches(node))) {
-      ctx.font = "12px system-ui";
-      ctx.fillStyle = "#edf3fa";
-      ctx.fillText(node.label, x + 9, y - 5);
+    if (active || node === hovered || (focusEdge && near)) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+      ctx.stroke();
     }
   }
   ctx.globalAlpha = 1;
+  drawMapLabels(marks, focusNode, hasFocus, search, w, h);
 }
-function reset() {
-  zoom = 1;
-  pan = [0, 0];
+
+function drawMapLabels(marks, focusNode, hasFocus, search, w, h) {
+  const detailed = hasFocus || search || zoom > 1.6 || data.nodes.length <= 32;
+  const limit = detailed ? Math.max(8, Math.floor(w * h / 2900)) : Math.max(3, Math.min(8, Math.floor(w / 115)));
+  const ordered = new Set([focusNode, hovered, ...mapLayout.labels]);
+  const controls = document.querySelector(".zoom-control");
+  const occupied = [[controls.offsetLeft - 4, controls.offsetTop - 4,
+    controls.offsetLeft + controls.offsetWidth + 4, controls.offsetTop + controls.offsetHeight + 4]];
+  // Index visible node footprints by column for collision checks while panning.
+  const columns = new Map();
+  for (const mark of marks.values()) {
+    for (let col = Math.floor((mark.x - mark.radius) / 64); col <= Math.floor((mark.x + mark.radius) / 64); col++) {
+      if (!columns.has(col)) columns.set(col, []);
+      columns.get(col).push(mark);
+    }
+  }
+  function coversNode(left, top, width, height) {
+    for (let col = Math.floor(left / 64); col <= Math.floor((left + width) / 64); col++) {
+      if (columns.get(col)?.some(m => m.x + m.radius > left && m.x - m.radius < left + width
+          && m.y + m.radius > top && m.y - m.radius < top + height)) return true;
+    }
+    return false;
+  }
+  let painted = 0;
+  for (const node of ordered) {
+    const mark = marks.get(node?.id);
+    if (!mark) continue;
+    const active = node === focusNode || node === hovered;
+    if (!active && ((hasFocus && !mark.near) || (search && !mark.matched) || (!detailed && !node.degree))) continue;
+    if (!detailed && mapLayout.positions.size && !mapLayout.anchors.has(node.id)) continue;
+    const { x, y, radius } = mark;
+    ctx.font = (active ? "600 12px" : "500 11px") + " system-ui";
+    const width = Math.min(w - 14, 196, Math.ceil(ctx.measureText(node.label).width) + 14);
+    const height = 20, gap = radius + 6;
+    const candidates = [[x + gap, y - gap - height], [x - gap - width, y - gap - height],
+      [x + gap, y + gap], [x - gap - width, y + gap],
+      [x - width / 2, y - gap - height], [x - width / 2, y + gap]];
+    let placement;
+    for (const [left, top] of candidates) {
+      if (left < 3 || top < 3 || left + width > w - 3 || top + height > h - 3) continue;
+      if (occupied.some(([l, t, r, b]) => left < r && left + width > l && top < b && top + height > t)) continue;
+      // Prefer labels that leave nearby nodes available to see and select.
+      if (coversNode(left, top, width, height)) {
+        if (active && !placement) placement = [left, top];
+        continue;
+      }
+      placement = [left, top];
+      break;
+    }
+    if (!placement) continue;
+    const [left, top] = placement;
+    ctx.fillStyle = active ? "#213832" : "#151d25ed";
+    ctx.strokeStyle = active ? colors[node.type] : "#34434d";
+    ctx.lineWidth = .8;
+    ctx.beginPath();
+    ctx.roundRect(left, top, width, height, 5);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = active ? "#edfff9" : "#cbd7df";
+    ctx.fillText(node.label, left + 7, top + 14, width - 14);
+    const padding = detailed ? 2 : 7;
+    occupied.push([left - padding, top - padding, left + width + padding, top + height + padding]);
+    if (++painted >= limit) break;
+  }
+}
+function setCamera(nextZoom, nextPan) {
+  cancelAnimationFrame(zoomFrame);
+  zoom = nextZoom;
+  pan = nextPan;
+  paintCamera();
+}
+function paintCamera() {
+  byId("zoom-level").value = Math.round(zoom * 100) + "%";
+  byId("zoom-out").disabled = zoom <= .5;
+  byId("zoom-in").disabled = zoom >= 6;
   draw();
+}
+function moveCamera(nextZoom, nextPan) {
+  if (reducedMotion.matches) { setCamera(nextZoom, nextPan); return; }
+  cancelAnimationFrame(zoomFrame);
+  const start = performance.now(), initialZoom = zoom, initialPan = [...pan];
+  function step(time) {
+    const fraction = Math.min(1, (time - start) / 180);
+    const progress = 1 - (1 - fraction) ** 3;
+    zoom = initialZoom + (nextZoom - initialZoom) * progress;
+    pan = initialPan.map((value, i) => value + (nextPan[i] - value) * progress);
+    paintCamera();
+    if (fraction < 1) zoomFrame = requestAnimationFrame(step);
+  }
+  zoomFrame = requestAnimationFrame(step);
+}
+function zoomBy(factor, anchor, animated = false) {
+  const next = Math.max(.5, Math.min(6, zoom * factor));
+  const nextPan = pan.map((offset, i) => anchor[i] + (offset - anchor[i]) * next / zoom);
+  if (animated) moveCamera(next, nextPan);
+  else setCamera(next, nextPan);
 }
 function edgeDistance(px, py, [[x, y], [tx, ty]]) {
   const dx = tx - x, dy = ty - y;
@@ -538,52 +775,72 @@ function edgeDistance(px, py, [[x, y], [tx, ty]]) {
   return Math.hypot(px - x - t * dx, py - y - t * dy);
 }
 canvas.onpointerdown = event => {
+  if (!event.isPrimary || event.button !== 0) return;
+  cancelAnimationFrame(zoomFrame);
   canvas.setPointerCapture(event.pointerId);
-  drag = { x: event.clientX, y: event.clientY, pan: [...pan] };
+  drag = { id: event.pointerId, x: event.clientX, y: event.clientY, pan: [...pan] };
 };
 canvas.onpointermove = event => {
-  if (!drag) return;
+  if (!event.isPrimary) return;
+  if (!drag) {
+    if (!data || event.pointerType !== "mouse") return;
+    const rect = canvas.getBoundingClientRect();
+    const hit = nodeAt(event.clientX - rect.left, event.clientY - rect.top);
+    if (hit !== hovered) {
+      hovered = hit;
+      canvas.toggleAttribute("data-hover", Boolean(hit));
+      draw();
+    }
+    return;
+  }
   pan = [drag.pan[0] + event.clientX - drag.x, drag.pan[1] + event.clientY - drag.y];
   draw();
 };
-canvas.onpointercancel = () => { drag = null; };
+canvas.onpointerleave = () => { if (hovered) { hovered = null; canvas.removeAttribute("data-hover"); draw(); } };
+canvas.onlostpointercapture = event => { if (drag?.id === event.pointerId) drag = null; };
 canvas.onpointerup = event => {
+  if (drag?.id !== event.pointerId) return;
   if (data && drag && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) {
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left, y = event.clientY - rect.top;
-    const hit = data.nodes.find(node => {
-      const [nx, ny] = point(node);
-      return Math.hypot(nx - x, ny - y) < 9;
-    });
+    const hit = nodeAt(x, y);
     if (hit) select("node", hit);
     else {
       const edge = visibleEdges().find(item => item.decision !== "rejected" && edgeDistance(x, y, edgePoints(item)) < 5);
       if (edge) select("edge", edge);
+      else if (selected || hovered) clearSelection();
     }
   }
   drag = null;
 };
 canvas.addEventListener("wheel", event => {
   event.preventDefault();
-  zoom = Math.max(.5, Math.min(6, zoom * Math.exp(-event.deltaY * .0015)));
-  draw();
+  const rect = canvas.getBoundingClientRect();
+  const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1;
+  zoomBy(Math.exp(-event.deltaY * scale * .0015),
+    [event.clientX - rect.left - rect.width / 2, event.clientY - rect.top - rect.height / 2]);
 }, { passive: false });
 new ResizeObserver(draw).observe(canvas);
 document.querySelectorAll("[data-view]").forEach(node => { node.onclick = () => load(node.dataset.view); });
 document.querySelectorAll("[data-panel]").forEach(node => {
   node.onclick = () => openPanel(node.dataset.panel);
 });
-byId("clear").onclick = () => { selected = null; inspect(); draw(); };
-byId("reset").onclick = reset;
+byId("clear").onclick = clearSelection;
+byId("reset").onclick = () => moveCamera(1, [0, 0]);
+byId("zoom-in").onclick = () => zoomBy(1.25, [0, 0], true);
+byId("zoom-out").onclick = () => zoomBy(.8, [0, 0], true);
 byId("weighted").onchange = draw;
 for (const id of ["search", "filter"]) byId(id).oninput = () => { selected = null; inspect(); draw(); };
-byId("open-input").onclick = () => byId("input-dialog").showModal();
+byId("open-input").onclick = () => {
+  closeSelectMenu();
+  byId("input-dialog").showModal();
+};
 byId("close-input").onclick = () => byId("input-dialog").close();
 byId("report-form").onsubmit = async event => {
   event.preventDefault();
   const submit = event.submitter;
   submit.disabled = true;
-  byId("input-status").textContent = "Analyzing reports…";
+  setStatus("input-status", "Analyzing reports…", true);
   try {
     const files = Array.from(byId("files").files);
     if (files.length > 50 || files.some(file => file.size > 80_000)) throw new Error("Choose up to 50 short UTF-8 text files.");
@@ -598,9 +855,9 @@ byId("report-form").onsubmit = async event => {
     ++requestNumber;
     showGraph("custom", result);
     byId("input-dialog").close();
-    byId("input-status").textContent = "";
+    setStatus("input-status", "");
   } catch (error) {
-    byId("input-status").textContent = error.message;
+    setStatus("input-status", error.message);
   } finally {
     submit.disabled = false;
   }

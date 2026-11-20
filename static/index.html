@@ -1,37 +1,142 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Casegraph | Investigation workspace</title>
-<link rel="stylesheet" href="/assets/style.css">
-<script defer src="/assets/app.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101216">
+  <title>CaseGraph | Investigation workspace</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script defer src="/assets/dropdown.js"></script>
+  <script defer src="/assets/graph-layout.js"></script>
+  <script defer src="/assets/chat.js"></script>
+  <script defer src="/assets/app.js"></script>
 </head>
 <body>
-<header class="top"><div class="brand"><span class="mark" aria-hidden="true">✳</span> Casegraph</div>
-<nav aria-label="Dataset">
-<button data-view="demo" class="active">Fictional reports</button>
-<button data-view="benchmark">Hand-written cases</button>
-<button data-view="lead">Lead Finder</button>
-<button data-view="montagna">Montagna</button>
-<button data-view="custom" hidden>Uploaded reports</button>
-<button data-view="evaluation">Evaluation</button>
-</nav><button id="open-input" class="primary">Analyze reports</button></header>
-<main>
-<section class="intro"><div><p class="overline">Investigation workspace</p><h1 id="title">Fictional report network</h1><p id="description">Explore entities, reported connections, and the evidence behind each edge.</p></div>
-<div class="stats" id="stats"></div></section>
-<div class="case-files"><button id="save-case" disabled>Save case</button> <button id="open-case">Open saved case</button><input id="case-file" type="file" accept=".json" hidden></div>
-<p id="status" role="status"></p>
-<section class="workspace" id="workspace">
-<div class="graph-card">
-<div class="toolbar"><label for="search">Find entity</label><input id="search" type="search" placeholder="Name or ID"><label for="filter">Relationship</label><select id="filter"><option value="">All types</option><option>Meeting</option><option>Communication</option><option>Association</option></select><label id="weight-control" hidden><input id="weighted" type="checkbox"> Size by source weight</label><button id="reset">Reset view</button></div>
-<canvas id="graph" aria-label="Interactive entity graph. Use the inspector for keyboard-accessible entity and evidence lists."></canvas>
-<div class="legend"><span><i class="dot people"></i> Person</span><span><i class="dot org"></i> Organisation</span><span><i class="dot place"></i> Location</span><span id="item-key" hidden><i class="dot item-key"></i> Item</span><span><i class="line"></i> Directly reported</span><span><i class="line uncertain"></i> Unverified</span><span><i class="line denied"></i> Denied</span></div>
+<div class="shell">
+  <header class="top">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i></span>CaseGraph</div>
+    <div class="top-actions">
+      <button id="open-case" type="button" class="quiet"><span aria-hidden="true">↥</span> Open case</button>
+      <button id="save-case" type="button" class="quiet" disabled><span aria-hidden="true">↓</span> Save case</button>
+      <button id="open-input" type="button" class="primary"><span aria-hidden="true">+</span> Analyze reports</button>
+      <input id="case-file" type="file" accept=".json,application/json" hidden>
+    </div>
+  </header>
+
+  <nav class="nav-rail" aria-label="Dataset and tools">
+    <div class="nav-group" role="group" aria-label="Datasets">
+      <p class="nav-caption" aria-hidden="true">Datasets</p>
+      <button type="button" data-view="demo" class="active" aria-pressed="true"><span class="nav-icon" aria-hidden="true">◈</span> Fictional reports</button>
+      <button type="button" data-view="benchmark"><span class="nav-icon" aria-hidden="true">▤</span> Hand-written cases</button>
+      <button type="button" data-view="montagna"><span class="nav-icon" aria-hidden="true">⌘</span> Montagna</button>
+      <button type="button" data-view="custom" hidden><span class="nav-icon" aria-hidden="true">↑</span> Uploaded reports</button>
+    </div>
+    <div class="nav-group" role="group" aria-label="Tools">
+      <p class="nav-caption" aria-hidden="true">Tools</p>
+      <button type="button" data-view="lead"><span class="nav-icon" aria-hidden="true">◎</span> Lead Finder</button>
+      <button type="button" data-view="evaluation"><span class="nav-icon" aria-hidden="true">▥</span> Evaluation</button>
+    </div>
+  </nav>
+
+  <main>
+    <section class="intro" aria-labelledby="title">
+      <div class="intro-copy">
+        <h1 id="title">Fictional report network</h1>
+        <p id="description">Explore entities, reported connections, and the evidence behind each edge.</p>
+      </div>
+      <div class="stats" id="stats" aria-label="Dataset summary"></div>
+    </section>
+    <p id="status" role="status"></p>
+
+    <section class="workspace" id="workspace" aria-label="Graph and evidence">
+      <section class="graph-card" aria-labelledby="graph-heading">
+        <div class="panel-header graph-header">
+          <h2 id="graph-heading"><span class="heading-mark" aria-hidden="true">⌘</span>Network graph</h2>
+          <button id="reset" type="button" class="quiet"><span aria-hidden="true">↺</span> Reset view</button>
+        </div>
+        <div class="toolbar">
+          <div class="field entity-field">
+            <label for="search">Find entity</label>
+            <div class="search-field">
+              <span class="search-icon" aria-hidden="true"></span>
+              <input id="search" type="search" placeholder="Name or ID" autocomplete="off">
+            </div>
+          </div>
+          <div class="field relation-field">
+            <label id="filter-label" for="filter">Relationship</label>
+            <select id="filter"><option value="">All types</option></select>
+          </div>
+          <label id="weight-control" class="switch-field" hidden><input id="weighted" type="checkbox"><span class="switch-track" aria-hidden="true"></span> Size by source weight</label>
+        </div>
+        <div class="graph-stage">
+          <div class="map-light" aria-hidden="true"></div>
+          <div id="map-spotlight" aria-hidden="true"></div>
+          <canvas id="graph" aria-label="Interactive entity graph. Use the inspector for keyboard-accessible entities and evidence."></canvas>
+          <div id="focus-ring" aria-hidden="true" hidden></div>
+          <p id="graph-empty" hidden>No entities to display.</p>
+          <div class="zoom-control" aria-label="Graph zoom">
+            <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+            <output id="zoom-level" aria-label="Zoom level" aria-live="off">100%</output>
+            <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+          </div>
+        </div>
+        <div class="legend" aria-label="Graph legend">
+          <div class="legend-group">
+            <span><i class="dot people"></i> Person</span>
+            <span><i class="dot org"></i> Organisation</span>
+            <span><i class="dot place"></i> Location</span>
+            <span id="item-key" hidden><i class="dot item-key"></i> Item</span>
+          </div>
+          <div class="legend-group">
+            <span><i class="line"></i> Directly reported</span>
+            <span><i class="line uncertain"></i> Unverified</span>
+            <span><i class="line denied"></i> Denied</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="inspector" aria-labelledby="inspector-heading">
+        <div class="panel-header">
+          <h2 id="inspector-heading"><span class="heading-mark" aria-hidden="true">▤</span>Inspector</h2>
+          <button id="clear" type="button" class="quiet" hidden>Clear selection</button>
+        </div>
+        <div class="panel-tabs" role="group" aria-label="Inspector views">
+          <button type="button" data-panel="leads" hidden>Leads</button>
+          <button type="button" data-panel="timeline" hidden>Timeline</button>
+          <button type="button" data-panel="entities" class="active">Entities</button>
+          <button type="button" data-panel="evidence">Evidence</button>
+          <button type="button" data-panel="review">Review</button>
+          <button type="button" data-panel="paths">Paths</button>
+          <button type="button" data-panel="chat">Ask this case</button>
+        </div>
+        <div class="details-region"><div id="details" class="details"></div></div>
+      </aside>
+    </section>
+    <section id="evaluation" class="evaluation" aria-label="Evaluation results" hidden></section>
+
+    <footer class="workspace-footer">
+      <span id="model" class="model-label"></span>
+      <span>Assess graph findings against their source evidence.</span>
+    </footer>
+  </main>
 </div>
-<aside class="inspector"><div class="panel-header"><h2>Inspector</h2><button id="clear" hidden>Clear selection</button></div><div class="panel-tabs"><button data-panel="leads" hidden>Leads</button><button data-panel="timeline" hidden>Timeline</button><button data-panel="paths">Paths</button><button data-panel="entities" class="active">Entities</button><button data-panel="evidence">Evidence</button><button data-panel="review">Review</button></div><div id="details" class="details"></div></aside>
-</section>
-<section id="evaluation" class="graph-card evaluation" hidden></section>
-</main>
-<footer><span id="model"></span><span>Graph patterns describe the available records. Assess findings against their source evidence.</span></footer>
-<dialog id="input-dialog"><form id="report-form"><div class="panel-header"><h2>Analyze reports</h2><button id="close-input" type="button" aria-label="Close">Close</button></div><label for="files">Upload UTF-8 text files</label><input id="files" type="file" accept=".txt,text/plain" multiple><label for="report-text">Or paste a report</label><textarea id="report-text" rows="8" placeholder="Paste an investigative report"></textarea><p class="muted">Include explicit record IDs such as [P101] where available. Files and pasted text are analyzed together.</p><p id="input-status" role="status"></p><button class="primary" type="submit">Build graph</button></form></dialog>
-</body></html>
+
+<dialog id="input-dialog" aria-labelledby="report-dialog-title">
+  <form id="report-form">
+    <div class="panel-header">
+      <h2 id="report-dialog-title">Analyze reports</h2>
+      <button id="close-input" class="quiet" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="form-fields">
+      <label for="files">Upload UTF-8 text files</label>
+      <input id="files" type="file" accept=".txt,text/plain" multiple>
+      <label for="report-text">Or paste a report</label>
+      <textarea id="report-text" rows="7" placeholder="Paste an investigative report"></textarea>
+      <p class="muted">Include explicit record IDs such as [P101] where available. Files and pasted text are analyzed together.</p>
+      <p id="input-status" role="status"></p>
+    </div>
+    <div class="form-actions"><button class="primary" type="submit">Build graph <span aria-hidden="true">↗</span></button></div>
+  </form>
+</dialog>
+</body>
+</html>

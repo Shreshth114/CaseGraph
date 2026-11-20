@@ -7,6 +7,7 @@ from flask import Flask, jsonify, request
 from analysis_engine import analyze, evaluate, montagna
 from validation.check import custody_results, field_results
 from benchmark import hand_written_reports
+from case_chat import ask_case
 from corpus import examples
 from lead_finder import demo_answer, demo_case, lead_graph
 
@@ -96,6 +97,24 @@ def reviewed_case(body, decisions, *, expected_version=None):
     else:
         raise ValueError("Choose a reviewable case.")
     return analyze(reports, decisions, expected_version=expected_version)
+
+
+@app.post("/api/chat")
+def case_chat():
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        raise ValueError("Provide a case and a question.")
+    question = body.get("question")
+    if not isinstance(question, str) or not 1 <= len(question.strip()) <= 500:
+        raise ValueError("Enter a question of up to 500 characters.")
+    version = body.get("version")
+    if not isinstance(version, str) or not isinstance(body.get("decisions"), list):
+        raise ValueError("Open a case before asking a question.")
+    context = body.get("edge")
+    if context is not None and not isinstance(context, str):
+        raise ValueError("Invalid evidence selection.")
+    graph = reviewed_case(body, body["decisions"], expected_version=version)
+    return jsonify(ask_case(question, graph, context))
 
 
 @app.post("/api/cases/open")
