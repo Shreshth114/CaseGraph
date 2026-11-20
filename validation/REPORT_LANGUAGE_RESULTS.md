@@ -1,8 +1,20 @@
 # Casegraph report-language test
 
+## Remaining relationship misses
+
+The next rules update recovered all six remaining claims. Casegraph now extracts **34/34 relationships with zero extra links** on these same 36 reports. This is a regression result because the missed examples guided the changes.
+
+| Relationship type | Previous result | Current result |
+|---|---:|---:|
+| Communications | 10/12 | 12/12 |
+| Meetings | 8/11 | 11/11 |
+| Organisation affiliations | 10/11 | 11/11 |
+
+Exact-span entity F1 in the app rose from 85.8% to 87.6%. The changes preserve accented names next to record IDs, repair name types in voicemail recipient positions, recognize qualified joint meetings, and link explicit self-reported denials when the speaker has no competing antecedent. The original sentences and claim statuses remain visible. The same fine-tuned checkpoint was used throughout.
+
 ## Affiliation update
 
-After the original test, six missed affiliations informed a rules update. Replaying the same 36 reports through the upload API now recovers **10/11 affiliations** (previously 4/11) and **28/34 relationships** (previously 22/34), with zero extra links. Overall relationship recall is 82.4% and F1 is 90.3%. The one missing affiliation is a denial expressed through a pronoun in `kiln_log-03`. Treat these updated scores as regression results on inspected examples.
+After the original test, six missed affiliations informed a rules update. That version recovered **10/11 affiliations** (previously 4/11) and **28/34 relationships** (previously 22/34), with zero extra links. Overall relationship recall was 82.4% and F1 was 90.3%. The remaining affiliation miss was a denial expressed through a pronoun in `kiln_log-03`.
 
 The added checks cover recorded offices, employee listings, qualified payroll claims, explicit membership denials and employer-first payroll records. Seven positive examples match the expected person, organisation, status and evidence sentence. Seven lookalikes produce zero links. These are targeted engineering checks. [Affiliation tests](../tests/test_affiliations.py)
 

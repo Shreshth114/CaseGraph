@@ -64,6 +64,51 @@ class LanguageRuleTests(unittest.TestCase):
     def test_unrelated_mentions_do_not_make_edges(self):
         self.assertEqual(self.claims("The index lists Iris Palmer and Noel Archer on unrelated pages."), [])
 
+    def test_accented_names_keep_record_ids_and_character_offsets(self):
+        for name in ("Élodie Garin", "E\u0301lodie Garin"):
+            text = f"Iris Palmer [P401] met {name} [P402] and called Noel Archer [P403]."
+            with self.subTest(name=name):
+                result = analyze([dict(id="R-01", text=text)])
+                records = {node["id"]: node["label"] for node in result["nodes"]}
+                self.assertEqual(records["P402"], name)
+                self.assertEqual([(c["source"], c["target"], c["type"]) for c in result["edges"]],
+                                 [("P401", "P402", "Meeting"), ("P401", "P403", "Communication")])
+                self.assertEqual(result["edges"][0]["target_offset"], text.index(name))
+                self.assertEqual(result["edges"][0]["sentence"], text)
+
+    def test_voicemail_targets_a_person_and_preserves_uncertainty(self):
+        text = "Iris Palmer reportedly left a voicemail for Noel Archer."
+        [claim] = self.claims(text)
+        self.assertEqual((claim["source"], claim["target"], claim["type"], claim["status"]),
+                         (0, text.index("Noel"), "Communication", "Unverified claim"))
+        self.assertEqual(self.claims("Iris Palmer left a voicemail for Brindlewick Theatre."), [])
+
+    def test_qualified_joint_meeting_is_unverified(self):
+        text = "Noel Archer told the usher that Iris Palmer and Dana Brooks may have met near Fallow Arcade."
+        [claim] = self.claims(text)
+        self.assertEqual((claim["source"], claim["target"], claim["type"], claim["status"]),
+                         (text.index("Iris"), text.index("Dana"), "Meeting", "Unverified claim"))
+        [call] = self.claims("Iris Palmer called Noel Archer and Dana Brooks might have met at Fallow Arcade.")
+        self.assertEqual(call["type"], "Communication")
+
+    def test_explicit_self_report_links_denial_only_with_clear_subject(self):
+        cases = [
+            ("Noel Archer said that he did not meet Iris Palmer.", "Iris Palmer", "Meeting"),
+            ("Iris Palmer says she was never a member of Alder Transit.", "Alder Transit", "Association"),
+        ]
+        for text, target, kind in cases:
+            with self.subTest(text=text):
+                [claim] = self.claims(text)
+                self.assertEqual((claim["source"], claim["target"], claim["type"], claim["status"], claim["sentence"]),
+                                 (0, text.index(target), kind, "Denied", text))
+        for text in (
+            "Noel Archer arrived. Iris Palmer said she did not call Dana Brooks.",
+            "Iris Palmer and Dana Brooks said she did not call Noel Archer.",
+            "Iris Palmer said Noel Archer never met Dana Brooks.",
+        ):
+            with self.subTest(text=text):
+                self.assertFalse(any(c["source"] == text.index("Iris Palmer") for c in self.claims(text)))
+
     def test_indirect_relationship_examples(self):
         cases = [
             ("A voicemail from Iris Palmer to Noel Archer was saved.", "Iris", "Noel", "Communication"),

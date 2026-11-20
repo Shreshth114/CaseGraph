@@ -11,7 +11,7 @@ OUTPUT = ROOT / "dist" / "Casegraph-submission.zip"
 
 def source_files():
     patterns = ("*.py", "*.md", "*.csv", "requirements.txt", "demo-report.txt", "static/*",
-                "lead_cases/*.json", "validation/*.py", "validation/*.json", "tests/*.py",
+                "lead_cases/*.json", "validation/*.py", "validation/*.json", "validation/*.md", "tests/*.py",
                 "third_party/*.txt", "training/*.py", "training/*.cfg", "training/*.json",
                 "training/data/*", "training/run/model-best/**/*")
     return sorted({file for pattern in patterns for file in ROOT.glob(pattern) if file.is_file()
