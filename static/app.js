@@ -183,7 +183,7 @@ async function decide(target, decision, note) {
   try {
     const result = await fetchJSON("/api/review", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dataset: caseView, reports: caseView === "custom" ? original.reports : undefined,
+      body: JSON.stringify({ dataset: caseView, version: original.source_version, reports: caseView === "custom" ? original.reports : undefined,
         decisions: [...original.decisions, { target, decision, at: new Date().toISOString(), note }] })
     });
     if (cases.get(caseView) !== original) return;

@@ -56,3 +56,49 @@ class ReleaseSmokeTests(unittest.TestCase):
             result = client.post("/api/review", json=dict(dataset="custom", reports=reports, decisions=actions))
             self.assertEqual(result.status_code, 400)
             self.assertIn("explicit person IDs", result.get_json()["error"])
+
+    def test_uploaded_claims_preserve_status_scope_ids_and_graph_analytics(self):
+        text = "Iris Palmer [P11] never called Noel Archer [P12], and Dana Brooks [P13] called Evan Moss [P14]."
+        with app.test_client() as client:
+            result = client.post("/api/analyze", json={"reports": [{"text": text}]}).get_json()
+        self.assertEqual({n["id"]: n["degree"] for n in result["nodes"]},
+                         {"P11": 0, "P12": 0, "P13": 1, "P14": 1})
+        self.assertEqual([(e["source"], e["target"], e["status"]) for e in result["edges"]],
+                         [("P11", "P12", "Denied"), ("P13", "P14", "Directly reported")])
+        for edge in result["edges"]:
+            self.assertEqual(edge["sentence"], text)
+            self.assertEqual(edge["offset"], 0)
+        self.assertEqual(result["edges"][1]["source_offset"], text.index("Dana"))
+        self.assertEqual(result["edges"][1]["target_offset"], text.index("Evan"))
+
+    def test_review_and_reopen_reuse_evidence_and_isolate_decisions(self):
+        from unittest.mock import patch
+        from analysis_engine import extract_network, prepared_text_evidence
+
+        prepared_text_evidence.cache_clear()
+        self.addCleanup(prepared_text_evidence.cache_clear)
+        with app.test_client() as client, patch("analysis_engine.extract_network", wraps=extract_network) as extract:
+            reports = [{"text": "Iris Palmer met Noel Archer and called Dana Brooks."}]
+            graph = client.post("/api/analyze", json={"reports": reports}).get_json()
+            self.assertEqual(len(graph["edges"]), 2)
+            first, second = graph["edges"]
+            self.assertEqual(first["source"], second["source"])
+            action = dict(target=second["id"], decision="rejected")
+            saved = dict(format="casegraph-1", dataset="custom", version=graph["source_version"],
+                         reports=graph["reports"], decisions=[action])
+            reviewed = client.post("/api/review", json=saved).get_json()
+            self.assertEqual(reviewed["edges"][1]["decision"], "rejected")
+            self.assertEqual(reviewed["source_version"], graph["source_version"])
+            self.assertEqual(client.post("/api/cases/open", json=saved).get_json()["graph"], reviewed)
+            untouched = client.post("/api/analyze", json={"reports": reports}).get_json()
+            self.assertEqual(untouched, graph)
+            self.assertEqual(extract.call_count, 1)
+
+            prepared_text_evidence.cache_clear()
+            reopened = client.post("/api/cases/open", json=saved).get_json()["graph"]
+            self.assertEqual(reopened, reviewed)
+            self.assertEqual(extract.call_count, 2)
+            saved["reports"][0]["text"] += " Updated."
+            stale = client.post("/api/review", json=saved)
+            self.assertEqual(stale.status_code, 400)
+            self.assertIn("version changed", stale.get_json()["error"])

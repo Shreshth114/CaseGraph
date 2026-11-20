@@ -9,7 +9,7 @@ from pathlib import Path
 
 import networkx as nx
 
-from analysis_engine import evidence_hash, reviewed_graph
+from analysis_engine import evidence_hash, network_version, reviewed_graph
 
 CASE_DIR = Path(__file__).resolve().parent / "lead_cases"
 CLOCK = r"(?:[01][0-9]|2[0-3]):[0-5][0-9]"
@@ -175,12 +175,15 @@ def rank_leads(case, graph):
     return dict(cards=cards, strongest=strongest, reason=reason)
 
 
-def lead_graph(case, decisions=()):
+def lead_graph(case, decisions=(), *, expected_version=None):
     nodes, edges, passages = case_records(case)
-    graph = reviewed_graph(nodes, edges, list(identity_suggestions(nodes)), case["reports"], decisions)
+    suggestions = list(identity_suggestions(nodes))
     public_case = {key: case[key] for key in ("id", "title", "question", "item", "date", "location", "window")}
+    version = network_version(nodes, edges, suggestions, case["reports"])
+    version = evidence_hash(["custody-v2", version, public_case, passages])
+    graph = reviewed_graph(nodes, edges, suggestions, case["reports"], decisions,
+                           source_version=version, expected_version=expected_version)
     lead = rank_leads(case, graph)
     if any(p["outcome"] == "needs review" for p in passages):
         lead.update(strongest=None, reason="A source passage needs review before prioritizing a handler.")
-    graph["source_version"] = evidence_hash(["custody-v2", graph["source_version"], public_case, passages])
     return dict(graph, case=public_case, lead=lead, passages=passages, model="Custody event rules")

@@ -1,0 +1,1202 @@
+[
+  {
+    "id": "library_returns-01",
+    "case": "library_returns",
+    "text": "At closing time, Zélie Armand met Martin Quillan at Larchwater Quay. The returns sheet was countersigned at 18:10.",
+    "mentions": [
+      {
+        "start": 17,
+        "end": 29,
+        "type": "Person",
+        "name": "Zélie Armand"
+      },
+      {
+        "start": 34,
+        "end": 48,
+        "type": "Person",
+        "name": "Martin Quillan"
+      },
+      {
+        "start": 52,
+        "end": 67,
+        "type": "Location",
+        "name": "Larchwater Quay"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 17,
+        "target": 34,
+        "type": "Meeting",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "library_returns-02",
+    "case": "library_returns",
+    "text": "The personnel list names Ishan Veluri as an employee of North Spindle Books. It gives Rillford as his duty station.",
+    "mentions": [
+      {
+        "start": 25,
+        "end": 37,
+        "type": "Person",
+        "name": "Ishan Veluri"
+      },
+      {
+        "start": 56,
+        "end": 75,
+        "type": "Organisation",
+        "name": "North Spindle Books"
+      },
+      {
+        "start": 86,
+        "end": 94,
+        "type": "Location",
+        "name": "Rillford"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 25,
+        "target": 56,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "library_returns-03",
+    "case": "library_returns",
+    "text": "Martin Quillan denied calling Ishan Veluri. The extension at Dovegate Hall had been disconnected for a week.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 14,
+        "type": "Person",
+        "name": "Martin Quillan"
+      },
+      {
+        "start": 30,
+        "end": 42,
+        "type": "Person",
+        "name": "Ishan Veluri"
+      },
+      {
+        "start": 61,
+        "end": 74,
+        "type": "Location",
+        "name": "Dovegate Hall"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 30,
+        "type": "Communication",
+        "status": "Denied"
+      }
+    ]
+  },
+  {
+    "id": "library_returns-04",
+    "case": "library_returns",
+    "text": "A witness alleged that Zélie Armand sat down with Ishan Veluri after the last reader left. A tote marked Gannet Bindery was found nearby.",
+    "mentions": [
+      {
+        "start": 23,
+        "end": 35,
+        "type": "Person",
+        "name": "Zélie Armand"
+      },
+      {
+        "start": 50,
+        "end": 62,
+        "type": "Person",
+        "name": "Ishan Veluri"
+      },
+      {
+        "start": 105,
+        "end": 119,
+        "type": "Organisation",
+        "name": "Gannet Bindery"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 23,
+        "target": 50,
+        "type": "Meeting",
+        "status": "Unverified claim"
+      }
+    ]
+  },
+  {
+    "id": "library_returns-05",
+    "case": "library_returns",
+    "text": "Two names occur in separate columns of the returns ledger at Dovegate Hall. Martin Quillan signed for a map and Elsa Mirren for a lamp on different days.",
+    "mentions": [
+      {
+        "start": 61,
+        "end": 74,
+        "type": "Location",
+        "name": "Dovegate Hall"
+      },
+      {
+        "start": 76,
+        "end": 90,
+        "type": "Person",
+        "name": "Martin Quillan"
+      },
+      {
+        "start": 112,
+        "end": 123,
+        "type": "Person",
+        "name": "Elsa Mirren"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "library_returns-06",
+    "case": "library_returns",
+    "text": "Elsa Mirren [P31] met Zélie Armand [P32] and called Martin Quillan [P33]. The desk clock at Larchwater Quay was five minutes slow.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 11,
+        "type": "Person",
+        "name": "Elsa Mirren"
+      },
+      {
+        "start": 22,
+        "end": 34,
+        "type": "Person",
+        "name": "Zélie Armand"
+      },
+      {
+        "start": 52,
+        "end": 66,
+        "type": "Person",
+        "name": "Martin Quillan"
+      },
+      {
+        "start": 92,
+        "end": 107,
+        "type": "Location",
+        "name": "Larchwater Quay"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 22,
+        "type": "Meeting",
+        "status": "Directly reported"
+      },
+      {
+        "source": 0,
+        "target": 52,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "tide_board-01",
+    "case": "tide_board",
+    "text": "Oswin Leth works for Saltfern Survey. The payroll extract gives a mailing address in Alderwash.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 10,
+        "type": "Person",
+        "name": "Oswin Leth"
+      },
+      {
+        "start": 21,
+        "end": 36,
+        "type": "Organisation",
+        "name": "Saltfern Survey"
+      },
+      {
+        "start": 85,
+        "end": 94,
+        "type": "Location",
+        "name": "Alderwash"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 21,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "tide_board-02",
+    "case": "tide_board",
+    "text": "Minutes from Crake Inlet record a meeting between Runa Vester and Behnam Suri. The first sheet is missing.",
+    "mentions": [
+      {
+        "start": 13,
+        "end": 24,
+        "type": "Location",
+        "name": "Crake Inlet"
+      },
+      {
+        "start": 50,
+        "end": 61,
+        "type": "Person",
+        "name": "Runa Vester"
+      },
+      {
+        "start": 66,
+        "end": 77,
+        "type": "Person",
+        "name": "Behnam Suri"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 50,
+        "target": 66,
+        "type": "Meeting",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "tide_board-03",
+    "case": "tide_board",
+    "text": "The switchboard printout shows that Behnam Suri was phoned by Runa Vester at 06:14. The line belongs to Saltfern Survey.",
+    "mentions": [
+      {
+        "start": 36,
+        "end": 47,
+        "type": "Person",
+        "name": "Behnam Suri"
+      },
+      {
+        "start": 62,
+        "end": 73,
+        "type": "Person",
+        "name": "Runa Vester"
+      },
+      {
+        "start": 104,
+        "end": 119,
+        "type": "Organisation",
+        "name": "Saltfern Survey"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 62,
+        "target": 36,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "tide_board-04",
+    "case": "tide_board",
+    "text": "Oswin Leth says he never met Runa Vester in Alderwash. A second visitor book is blank.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 10,
+        "type": "Person",
+        "name": "Oswin Leth"
+      },
+      {
+        "start": 29,
+        "end": 40,
+        "type": "Person",
+        "name": "Runa Vester"
+      },
+      {
+        "start": 44,
+        "end": 53,
+        "type": "Location",
+        "name": "Alderwash"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 29,
+        "type": "Meeting",
+        "status": "Denied"
+      }
+    ]
+  },
+  {
+    "id": "tide_board-05",
+    "case": "tide_board",
+    "text": "Glass Reed Cartography and Saltfern Survey each submitted a map of Crake Inlet. Only the scale bars were compared.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 22,
+        "type": "Organisation",
+        "name": "Glass Reed Cartography"
+      },
+      {
+        "start": 27,
+        "end": 42,
+        "type": "Organisation",
+        "name": "Saltfern Survey"
+      },
+      {
+        "start": 67,
+        "end": 78,
+        "type": "Location",
+        "name": "Crake Inlet"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "tide_board-06",
+    "case": "tide_board",
+    "text": "One unsigned tip says Behnam Suri may be on the payroll of Glass Reed Cartography. There is no contract in the folder.",
+    "mentions": [
+      {
+        "start": 22,
+        "end": 33,
+        "type": "Person",
+        "name": "Behnam Suri"
+      },
+      {
+        "start": 59,
+        "end": 81,
+        "type": "Organisation",
+        "name": "Glass Reed Cartography"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 22,
+        "target": 59,
+        "type": "Association",
+        "status": "Unverified claim"
+      }
+    ]
+  },
+  {
+    "id": "theatre_keys-01",
+    "case": "theatre_keys",
+    "text": "Aina Bellon left a voicemail for Tobin Esker about the key cabinet at Brindlewick Theatre. The recording lasts eleven seconds.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 11,
+        "type": "Person",
+        "name": "Aina Bellon"
+      },
+      {
+        "start": 33,
+        "end": 44,
+        "type": "Person",
+        "name": "Tobin Esker"
+      },
+      {
+        "start": 70,
+        "end": 89,
+        "type": "Location",
+        "name": "Brindlewick Theatre"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 33,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "theatre_keys-02",
+    "case": "theatre_keys",
+    "text": "The stage-door log identifies Pavel Imre as a technician for Opaline Staging. His badge expired in June.",
+    "mentions": [
+      {
+        "start": 30,
+        "end": 40,
+        "type": "Person",
+        "name": "Pavel Imre"
+      },
+      {
+        "start": 61,
+        "end": 76,
+        "type": "Organisation",
+        "name": "Opaline Staging"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 30,
+        "target": 61,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "theatre_keys-03",
+    "case": "theatre_keys",
+    "text": "Tobin Esker told the usher that Aina Bellon and Pavel Imre might have met at Fallow Arcade. No time was given.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 11,
+        "type": "Person",
+        "name": "Tobin Esker"
+      },
+      {
+        "start": 32,
+        "end": 43,
+        "type": "Person",
+        "name": "Aina Bellon"
+      },
+      {
+        "start": 48,
+        "end": 58,
+        "type": "Person",
+        "name": "Pavel Imre"
+      },
+      {
+        "start": 77,
+        "end": 90,
+        "type": "Location",
+        "name": "Fallow Arcade"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 32,
+        "target": 48,
+        "type": "Meeting",
+        "status": "Unverified claim"
+      }
+    ]
+  },
+  {
+    "id": "theatre_keys-04",
+    "case": "theatre_keys",
+    "text": "Aina Bellon never called Pavel Imre, and Tobin Esker called Liora Nevin. Both entries were filed at Fallow Arcade.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 11,
+        "type": "Person",
+        "name": "Aina Bellon"
+      },
+      {
+        "start": 25,
+        "end": 35,
+        "type": "Person",
+        "name": "Pavel Imre"
+      },
+      {
+        "start": 41,
+        "end": 52,
+        "type": "Person",
+        "name": "Tobin Esker"
+      },
+      {
+        "start": 60,
+        "end": 71,
+        "type": "Person",
+        "name": "Liora Nevin"
+      },
+      {
+        "start": 100,
+        "end": 113,
+        "type": "Location",
+        "name": "Fallow Arcade"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 25,
+        "type": "Communication",
+        "status": "Denied"
+      },
+      {
+        "source": 41,
+        "target": 60,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "theatre_keys-05",
+    "case": "theatre_keys",
+    "text": "The contact sheet for Opaline Staging carries the names Pavel Imre and Liora Nevin. Neither entry has a date or an outgoing call.",
+    "mentions": [
+      {
+        "start": 22,
+        "end": 37,
+        "type": "Organisation",
+        "name": "Opaline Staging"
+      },
+      {
+        "start": 56,
+        "end": 66,
+        "type": "Person",
+        "name": "Pavel Imre"
+      },
+      {
+        "start": 71,
+        "end": 82,
+        "type": "Person",
+        "name": "Liora Nevin"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "theatre_keys-06",
+    "case": "theatre_keys",
+    "text": "Liora Nevin and Tobin Esker held a brief meeting backstage. The duty roster places the performance at Brindlewick Theatre.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 11,
+        "type": "Person",
+        "name": "Liora Nevin"
+      },
+      {
+        "start": 16,
+        "end": 27,
+        "type": "Person",
+        "name": "Tobin Esker"
+      },
+      {
+        "start": 102,
+        "end": 121,
+        "type": "Location",
+        "name": "Brindlewick Theatre"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 16,
+        "type": "Meeting",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "seed_inventory-01",
+    "case": "seed_inventory",
+    "text": "The renewal form lists Esme Varin as a member of the Pearlbarrow Society. The seal reads Marlfen.",
+    "mentions": [
+      {
+        "start": 23,
+        "end": 33,
+        "type": "Person",
+        "name": "Esme Varin"
+      },
+      {
+        "start": 53,
+        "end": 72,
+        "type": "Organisation",
+        "name": "Pearlbarrow Society"
+      },
+      {
+        "start": 89,
+        "end": 96,
+        "type": "Location",
+        "name": "Marlfen"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 23,
+        "target": 53,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "seed_inventory-02",
+    "case": "seed_inventory",
+    "text": "Dario Senn received a message from Mina Okoye asking about a mislabeled seed tray. The note was printed in Sorrell Yard.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 10,
+        "type": "Person",
+        "name": "Dario Senn"
+      },
+      {
+        "start": 35,
+        "end": 45,
+        "type": "Person",
+        "name": "Mina Okoye"
+      },
+      {
+        "start": 107,
+        "end": 119,
+        "type": "Location",
+        "name": "Sorrell Yard"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 35,
+        "target": 0,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "seed_inventory-03",
+    "case": "seed_inventory",
+    "text": "Mina Okoye denied working for Dapple Seed Bank. A visitor badge listed Marlfen as the issuing town.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 10,
+        "type": "Person",
+        "name": "Mina Okoye"
+      },
+      {
+        "start": 30,
+        "end": 46,
+        "type": "Organisation",
+        "name": "Dapple Seed Bank"
+      },
+      {
+        "start": 71,
+        "end": 78,
+        "type": "Location",
+        "name": "Marlfen"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 30,
+        "type": "Association",
+        "status": "Denied"
+      }
+    ]
+  },
+  {
+    "id": "seed_inventory-04",
+    "case": "seed_inventory",
+    "text": "The delivery register puts Dario Senn in Sorrell Yard on Monday and Esme Varin there on Friday. The two signatures are on different sheets.",
+    "mentions": [
+      {
+        "start": 27,
+        "end": 37,
+        "type": "Person",
+        "name": "Dario Senn"
+      },
+      {
+        "start": 41,
+        "end": 53,
+        "type": "Location",
+        "name": "Sorrell Yard"
+      },
+      {
+        "start": 68,
+        "end": 78,
+        "type": "Person",
+        "name": "Esme Varin"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "seed_inventory-05",
+    "case": "seed_inventory",
+    "text": "According to an unnamed caller, Esme Varin sent an email to Dario Senn before the trays were moved. The inbox was unavailable.",
+    "mentions": [
+      {
+        "start": 32,
+        "end": 42,
+        "type": "Person",
+        "name": "Esme Varin"
+      },
+      {
+        "start": 60,
+        "end": 70,
+        "type": "Person",
+        "name": "Dario Senn"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 32,
+        "target": 60,
+        "type": "Communication",
+        "status": "Unverified claim"
+      }
+    ]
+  },
+  {
+    "id": "seed_inventory-06",
+    "case": "seed_inventory",
+    "text": "At the packing bench in Marlfen, Mina Okoye and Esme Varin compared notes in person. Dario Senn works for Dapple Seed Bank.",
+    "mentions": [
+      {
+        "start": 24,
+        "end": 31,
+        "type": "Location",
+        "name": "Marlfen"
+      },
+      {
+        "start": 33,
+        "end": 43,
+        "type": "Person",
+        "name": "Mina Okoye"
+      },
+      {
+        "start": 48,
+        "end": 58,
+        "type": "Person",
+        "name": "Esme Varin"
+      },
+      {
+        "start": 85,
+        "end": 95,
+        "type": "Person",
+        "name": "Dario Senn"
+      },
+      {
+        "start": 106,
+        "end": 122,
+        "type": "Organisation",
+        "name": "Dapple Seed Bank"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 33,
+        "target": 48,
+        "type": "Meeting",
+        "status": "Directly reported"
+      },
+      {
+        "source": 85,
+        "target": 106,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "pump_receipts-01",
+    "case": "pump_receipts",
+    "text": "The extension list shows a call from Adaeze Kojo to Nils Harten. The handwritten location is Cinderholt.",
+    "mentions": [
+      {
+        "start": 37,
+        "end": 48,
+        "type": "Person",
+        "name": "Adaeze Kojo"
+      },
+      {
+        "start": 52,
+        "end": 63,
+        "type": "Person",
+        "name": "Nils Harten"
+      },
+      {
+        "start": 93,
+        "end": 103,
+        "type": "Location",
+        "name": "Cinderholt"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 37,
+        "target": 52,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "pump_receipts-02",
+    "case": "pump_receipts",
+    "text": "Nils Harten is listed as the treasurer of Wren Valve Cooperative. A duplicate form was filed at Flintmere Pier.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 11,
+        "type": "Person",
+        "name": "Nils Harten"
+      },
+      {
+        "start": 42,
+        "end": 64,
+        "type": "Organisation",
+        "name": "Wren Valve Cooperative"
+      },
+      {
+        "start": 96,
+        "end": 110,
+        "type": "Location",
+        "name": "Flintmere Pier"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 42,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "pump_receipts-03",
+    "case": "pump_receipts",
+    "text": "Malek Rami denied meeting Adaeze Kojo at Flintmere Pier. The maintenance sheet gives no visitor names.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 10,
+        "type": "Person",
+        "name": "Malek Rami"
+      },
+      {
+        "start": 26,
+        "end": 37,
+        "type": "Person",
+        "name": "Adaeze Kojo"
+      },
+      {
+        "start": 41,
+        "end": 55,
+        "type": "Location",
+        "name": "Flintmere Pier"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 26,
+        "type": "Meeting",
+        "status": "Denied"
+      }
+    ]
+  },
+  {
+    "id": "pump_receipts-04",
+    "case": "pump_receipts",
+    "text": "The maintenance firm Wren Valve Cooperative printed Malek Rami's name on an envelope. The envelope was never sent and the return address was in Cinderholt.",
+    "mentions": [
+      {
+        "start": 21,
+        "end": 43,
+        "type": "Organisation",
+        "name": "Wren Valve Cooperative"
+      },
+      {
+        "start": 52,
+        "end": 62,
+        "type": "Person",
+        "name": "Malek Rami"
+      },
+      {
+        "start": 144,
+        "end": 154,
+        "type": "Location",
+        "name": "Cinderholt"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "pump_receipts-05",
+    "case": "pump_receipts",
+    "text": "Adaeze Kojo reportedly called Malek Rami after the inspection. Nils Harten met Malek Rami by the intake gate.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 11,
+        "type": "Person",
+        "name": "Adaeze Kojo"
+      },
+      {
+        "start": 30,
+        "end": 40,
+        "type": "Person",
+        "name": "Malek Rami"
+      },
+      {
+        "start": 63,
+        "end": 74,
+        "type": "Person",
+        "name": "Nils Harten"
+      },
+      {
+        "start": 79,
+        "end": 89,
+        "type": "Person",
+        "name": "Malek Rami"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 30,
+        "type": "Communication",
+        "status": "Unverified claim"
+      },
+      {
+        "source": 63,
+        "target": 79,
+        "type": "Meeting",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "pump_receipts-06",
+    "case": "pump_receipts",
+    "text": "Malek Rami is employed by Low Lantern Hydraulics. The file includes a wage slip and a photograph of Flintmere Pier.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 10,
+        "type": "Person",
+        "name": "Malek Rami"
+      },
+      {
+        "start": 26,
+        "end": 48,
+        "type": "Organisation",
+        "name": "Low Lantern Hydraulics"
+      },
+      {
+        "start": 100,
+        "end": 114,
+        "type": "Location",
+        "name": "Flintmere Pier"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 26,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "kiln_log-01",
+    "case": "kiln_log",
+    "text": "On the night shift Hyejin Moon rang Arvo Silt from the office in Plover Ness. The operator recorded the duration.",
+    "mentions": [
+      {
+        "start": 19,
+        "end": 30,
+        "type": "Person",
+        "name": "Hyejin Moon"
+      },
+      {
+        "start": 36,
+        "end": 45,
+        "type": "Person",
+        "name": "Arvo Silt"
+      },
+      {
+        "start": 65,
+        "end": 76,
+        "type": "Location",
+        "name": "Plover Ness"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 19,
+        "target": 36,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "kiln_log-02",
+    "case": "kiln_log",
+    "text": "At Thimblecross Hall, Sarai Loera spent the morning with Hyejin Moon in the sample room. The pair signed the same examination sheet.",
+    "mentions": [
+      {
+        "start": 3,
+        "end": 20,
+        "type": "Location",
+        "name": "Thimblecross Hall"
+      },
+      {
+        "start": 22,
+        "end": 33,
+        "type": "Person",
+        "name": "Sarai Loera"
+      },
+      {
+        "start": 57,
+        "end": 68,
+        "type": "Person",
+        "name": "Hyejin Moon"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 22,
+        "target": 57,
+        "type": "Meeting",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "kiln_log-03",
+    "case": "kiln_log",
+    "text": "Arvo Silt says he was never a member of Feldspar Kiln Guild. He supplied a visitor pass for Plover Ness.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 9,
+        "type": "Person",
+        "name": "Arvo Silt"
+      },
+      {
+        "start": 40,
+        "end": 59,
+        "type": "Organisation",
+        "name": "Feldspar Kiln Guild"
+      },
+      {
+        "start": 92,
+        "end": 103,
+        "type": "Location",
+        "name": "Plover Ness"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 40,
+        "type": "Association",
+        "status": "Denied"
+      }
+    ]
+  },
+  {
+    "id": "kiln_log-04",
+    "case": "kiln_log",
+    "text": "The application mentions Sarai Loera as a possible future employee of Mica Pattern Works. The vacancy was cancelled before interviews.",
+    "mentions": [
+      {
+        "start": 25,
+        "end": 36,
+        "type": "Person",
+        "name": "Sarai Loera"
+      },
+      {
+        "start": 70,
+        "end": 88,
+        "type": "Organisation",
+        "name": "Mica Pattern Works"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "kiln_log-05",
+    "case": "kiln_log",
+    "text": "A desk note attributes a message to Hyejin Moon. In the note, Hyejin Moon may have texted Sarai Loera after leaving Thimblecross Hall.",
+    "mentions": [
+      {
+        "start": 36,
+        "end": 47,
+        "type": "Person",
+        "name": "Hyejin Moon"
+      },
+      {
+        "start": 62,
+        "end": 73,
+        "type": "Person",
+        "name": "Hyejin Moon"
+      },
+      {
+        "start": 90,
+        "end": 101,
+        "type": "Person",
+        "name": "Sarai Loera"
+      },
+      {
+        "start": 116,
+        "end": 133,
+        "type": "Location",
+        "name": "Thimblecross Hall"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 62,
+        "target": 90,
+        "type": "Communication",
+        "status": "Unverified claim"
+      }
+    ]
+  },
+  {
+    "id": "kiln_log-06",
+    "case": "kiln_log",
+    "text": "The payroll register at Mica Pattern Works lists Arvo Silt as a driver. A separate entry simply gives Sarai Loera's address in Plover Ness.",
+    "mentions": [
+      {
+        "start": 24,
+        "end": 42,
+        "type": "Organisation",
+        "name": "Mica Pattern Works"
+      },
+      {
+        "start": 49,
+        "end": 58,
+        "type": "Person",
+        "name": "Arvo Silt"
+      },
+      {
+        "start": 102,
+        "end": 113,
+        "type": "Person",
+        "name": "Sarai Loera"
+      },
+      {
+        "start": 127,
+        "end": 138,
+        "type": "Location",
+        "name": "Plover Ness"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 49,
+        "target": 24,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  }
+]

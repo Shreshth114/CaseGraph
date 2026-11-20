@@ -75,15 +75,18 @@ def update_review():
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
         raise ValueError("Provide a dataset and its review decisions.")
-    return jsonify(reviewed_case(body, body.get("decisions")))
+    version = body.get("version")
+    if version is not None and not isinstance(version, str):
+        raise ValueError("Invalid evidence version.")
+    return jsonify(reviewed_case(body, body.get("decisions"), expected_version=version))
 
 
-def reviewed_case(body, decisions):
+def reviewed_case(body, decisions, *, expected_version=None):
     dataset = body.get("dataset")
     if dataset == "montagna":
-        return montagna(decisions)
+        return montagna(decisions, expected_version=expected_version)
     if dataset == "lead":
-        return lead_graph(demo_case(), decisions)
+        return lead_graph(demo_case(), decisions, expected_version=expected_version)
     if dataset == "benchmark":
         reports = benchmark_input()
     elif dataset == "demo":
@@ -92,7 +95,7 @@ def reviewed_case(body, decisions):
         reports = normalize_reports(body.get("reports"))
     else:
         raise ValueError("Choose a reviewable case.")
-    return analyze(reports, decisions)
+    return analyze(reports, decisions, expected_version=expected_version)
 
 
 @app.post("/api/cases/open")
@@ -100,12 +103,13 @@ def open_case():
     saved = request.get_json(silent=True)
     if not isinstance(saved, dict) or saved.get("format") != "casegraph-1":
         raise ValueError("Choose a version 1 Casegraph case file.")
-    base = reviewed_case(saved, [])
-    if (saved.get("version") != base["source_version"] or saved.get("reports") != base["reports"]):
-        raise ValueError("Source or extraction version changed. Saved decisions require a new review.")
+    if not isinstance(saved.get("version"), str):
+        raise ValueError("The case is missing its evidence version.")
     if not isinstance(saved.get("decisions"), list):
         raise ValueError("The case is missing its review history.")
-    graph = reviewed_case(saved, saved["decisions"]) if saved["decisions"] else base
+    graph = reviewed_case(saved, saved["decisions"], expected_version=saved["version"])
+    if saved.get("reports") != graph["reports"]:
+        raise ValueError("Source or extraction version changed. Saved decisions require a new review.")
     return jsonify(dataset=saved["dataset"], graph=graph)
 
 

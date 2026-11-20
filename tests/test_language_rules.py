@@ -26,6 +26,41 @@ class LanguageRuleTests(unittest.TestCase):
         self.assertEqual([(claim["type"], claim["status"]) for claim in self.claims(text)],
                          [("Communication", "Denied"), ("Meeting", "Directly reported")])
 
+    def test_status_only_applies_to_the_matching_clause(self):
+        cases = [
+            ("Iris Palmer never called Noel Archer, and Dana Brooks called Evan Moss.", ["Denied", "Directly reported"]),
+            ("Iris Palmer called Noel Archer and Dana Brooks never called Evan Moss.", ["Directly reported", "Denied"]),
+            ("Iris Palmer met Noel Archer and did not attend the lecture.", ["Directly reported"]),
+            ("Iris Palmer met Noel Archer and Dana Brooks did not attend.", ["Directly reported"]),
+        ]
+        for text, expected in cases:
+            with self.subTest(text=text):
+                self.assertEqual([claim["status"] for claim in self.claims(text)], expected)
+
+    def test_shared_subject_keeps_direction_scope_and_sentence_evidence(self):
+        cases = [
+            ("Iris Palmer met Noel Archer and called Dana Brooks.", "Iris", "Noel", "Directly reported", "Directly reported"),
+            ("Iris Palmer was called by Noel Archer and met Dana Brooks.", "Noel", "Iris", "Directly reported", "Directly reported"),
+            ("Iris Palmer did not meet Noel Archer and call Dana Brooks.", "Iris", "Noel", "Denied", "Denied"),
+            ("Iris Palmer met Noel Archer but never called Dana Brooks.", "Iris", "Noel", "Directly reported", "Denied"),
+            ("A witness said Iris Palmer met Noel Archer and called Dana Brooks.", "Iris", "Noel", "Unverified claim", "Unverified claim"),
+        ]
+        for text, first_source, first_target, status1, status2 in cases:
+            with self.subTest(text=text):
+                a, b = self.claims(text)
+                self.assertEqual((a["source"], a["target"], a["status"]), (text.index(first_source), text.index(first_target), status1))
+                self.assertEqual((b["source"], b["target"], b["status"]), (text.index("Iris"), text.index("Dana"), status2))
+                self.assertEqual([a["sentence"], b["sentence"]], [text, text])
+
+    def test_id_length_does_not_change_relationship_extraction(self):
+        for first, second in [("P1", "P2"), ("P11", "P12"), ("P101", "P102"), ("P0001", "P98765")]:
+            text = f"Iris Palmer [{first}] called Noel Archer [{second}]."
+            with self.subTest(text=text):
+                mentions, [claim], _ = extract({"id": "test", "text": text})
+                self.assertEqual([(m["name"], m["marker"]) for m in mentions], [("Iris Palmer", first), ("Noel Archer", second)])
+                self.assertEqual(claim["target"], text.index("Noel"))
+                self.assertEqual(claim["sentence"], text)
+
     def test_unrelated_mentions_do_not_make_edges(self):
         self.assertEqual(self.claims("The index lists Iris Palmer and Noel Archer on unrelated pages."), [])
 

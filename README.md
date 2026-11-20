@@ -85,7 +85,7 @@ The `training/data` folder contains the readable JSONL annotations and the compi
 
 ## Continue a case and explore the evidence
 
-- **Save case** downloads a JSON file with source reports and timestamped review decisions. **Open saved case** restores it after a refresh. A changed source or extraction fingerprint requires another review. Store saved files with the same care as the original reports.
+- **Save case** downloads a JSON file with source reports and timestamped review decisions. **Open saved case** restores it after a refresh. The local server holds extracted evidence for the eight most recent text batches in memory. Review decisions reuse that evidence. Reopening after a server restart or cache eviction extracts the text once and checks its fingerprint before replaying decisions. A changed source or extraction fingerprint requires another review. Store saved files with the same care as the original reports.
 - **Timeline** in Lead Finder orders custody and shift records by time. Select an entry for its original passage. **Source coverage** distinguishes parsed passages, narrative context and unread records. An unread candidate record pauses prioritization.
 - **Paths** finds a shortest connection through directly reported, unrejected evidence. Each hop lists all qualifying rows in either direction. **Size by source weight** in Montagna compares total incident weight with the default distinct-neighbor view. Degree centrality and communities keep their original definitions.
 - **Evaluation** includes the three custody cases and the frozen field-set comparison. Run `.venv/bin/python -m validation.check` for the machine-readable scores. [Annotation guide](ANNOTATION_GUIDE.md)
