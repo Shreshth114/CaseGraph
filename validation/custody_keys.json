@@ -1,0 +1,42 @@
+[
+  {
+    "id": "key",
+    "strongest": "P1",
+    "reason": "latest documented",
+    "support": {
+      "P1": [
+        "D1:1:Holder",
+        "D2:1:Holder"
+      ]
+    }
+  },
+  {
+    "id": "seal",
+    "strongest": null,
+    "reason": "equal independent",
+    "support": {
+      "P1": [
+        "D1:1:Holder",
+        "D3:1:Holder"
+      ],
+      "P2": [
+        "D2:1:Holder",
+        "D4:1:Holder"
+      ]
+    }
+  },
+  {
+    "id": "meter",
+    "strongest": null,
+    "reason": "same time or later",
+    "support": {
+      "P1": [
+        "D1:1:Holder",
+        "D2:1:Holder"
+      ],
+      "P2": [
+        "D3:1:Holder"
+      ]
+    }
+  }
+]

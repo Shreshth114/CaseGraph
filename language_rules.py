@@ -208,6 +208,11 @@ HONORIFIC = re.compile(r"^(?:Mr|Mrs|Ms|Dr|Prof|Detective|Officer|Inspector)\s+")
 NAME_STOPWORDS = {"A", "An", "At", "By", "From", "The", "In", "On", "And", "To"}
 
 
+TIMED_CALL = re.compile(r"^(?:(?:reportedly|never|did not)\s+)?(?:later|subsequently|then)\s+(?:called|phoned|telephoned|call|phone)$", re.I)
+OFFICER_ROLE = re.compile(r"^as (?:one of the officers|an officer) of(?: the)?$", re.I)
+TOUR_OBSERVATION = re.compile(r"^\s+(?:for|during) (?:the |a |an )?(?:full |afternoon |morning )?tour\b", re.I)
+
+
 def contextual_relationship(prefix, between, suffix, left_type, right_type):
     """Recognize explicit affiliation, addressing and in-person joint activity."""
     base = expanded_relationship(prefix, between, suffix, left_type, right_type)
@@ -215,9 +220,14 @@ def contextual_relationship(prefix, between, suffix, left_type, right_type):
         return base
     if left_type != "Person":
         return None
-    if right_type == "Organisation" and STAFF_PREFIX.search(prefix) and LISTED_MEMBER.fullmatch(between):
+    if right_type == "Organisation" and STAFF_PREFIX.search(prefix) and (LISTED_MEMBER.fullmatch(between) or OFFICER_ROLE.fullmatch(between)):
         return "Association", False
     if right_type == "Person":
+        if TIMED_CALL.fullmatch(between):
+            return "Communication", False
+        if (between.casefold() == "together with" and re.search(r"\b(?:saw|observed)$", prefix, re.I)
+                and TOUR_OBSERVATION.match(suffix) and not REMOTE_CONTACT.search(suffix)):
+            return "Meeting", False
         if between.casefold() == "by" and ADDRESSED_PACKET.search(prefix):
             return "Communication", True
         if between.casefold() == "and" and TIME_TOGETHER.search(suffix) and not REMOTE_CONTACT.search(suffix):
@@ -238,6 +248,10 @@ def contextual_mentions(body, sentences, mentions, marker_pattern):
     """Repair clear contact slots and link unambiguous surname mentions locally."""
     spans = {(item["start"], item["end"]): item.copy() for item in mentions}
     short_references = {}
+    for entity in spans.values():
+        if (not entity["marker"] and entity["name"].endswith(" Guild")
+                and re.search(r"\bmember of (?:the )?$", body[:entity["start"]], re.I)):
+            entity["type"] = "Organisation"
 
     def nonperson(span):
         name = body[span[0]:span[1]]
@@ -264,7 +278,8 @@ def contextual_mentions(body, sentences, mentions, marker_pattern):
             prefix = body[start:left[0]].rstrip()
             between = marker_pattern.sub("", body[left[1]:right[0]]).strip()
             two_contact_names = ((between.casefold() == "to" and VOICEMAIL_FROM.search(prefix))
-                                 or PASSIVE.fullmatch(between) or RECEIVED_CALL.fullmatch(between))
+                                 or PASSIVE.fullmatch(between) or RECEIVED_CALL.fullmatch(between)
+                                 or TIMED_CALL.fullmatch(between))
             if two_contact_names and not any(nonperson(span) for span in (left, right)):
                 register_person(left)
                 register_person(right)

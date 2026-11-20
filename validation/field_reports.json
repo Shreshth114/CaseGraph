@@ -1,0 +1,358 @@
+[
+  {
+    "id": "field-01",
+    "text": "The return names Rosa Bell as one of the officers of Pinebrook Council.",
+    "mentions": [
+      {
+        "start": 17,
+        "end": 26,
+        "type": "Person"
+      },
+      {
+        "start": 53,
+        "end": 70,
+        "type": "Organisation"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 17,
+        "target": 53,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "field-02",
+    "text": "At the archive, Simon Wade delivered papers for Elmford Guild.",
+    "mentions": [
+      {
+        "start": 16,
+        "end": 26,
+        "type": "Person"
+      },
+      {
+        "start": 48,
+        "end": 61,
+        "type": "Organisation"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "field-03",
+    "text": "The attendance sheet lists Nina Shah as a member of the Copperhill Guild.",
+    "mentions": [
+      {
+        "start": 27,
+        "end": 36,
+        "type": "Person"
+      },
+      {
+        "start": 56,
+        "end": 72,
+        "type": "Organisation"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 27,
+        "target": 56,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "field-04",
+    "text": "Ivo Marsh subsequently telephoned Orla Price about the label.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 9,
+        "type": "Person"
+      },
+      {
+        "start": 34,
+        "end": 44,
+        "type": "Person"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 34,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "field-05",
+    "text": "Ada Cole never phoned Felix Dunn.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 8,
+        "type": "Person"
+      },
+      {
+        "start": 22,
+        "end": 32,
+        "type": "Person"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 22,
+        "type": "Communication",
+        "status": "Denied"
+      }
+    ]
+  },
+  {
+    "id": "field-06",
+    "text": "A steward saw Emil Hart together with Tessa Lane for the afternoon tour.",
+    "mentions": [
+      {
+        "start": 14,
+        "end": 23,
+        "type": "Person"
+      },
+      {
+        "start": 38,
+        "end": 48,
+        "type": "Person"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 14,
+        "target": 38,
+        "type": "Meeting",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "field-07",
+    "text": "Leo Reed and Eva Stone booked separate places on the same tour.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 8,
+        "type": "Person"
+      },
+      {
+        "start": 13,
+        "end": 22,
+        "type": "Person"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "field-08",
+    "text": "Sofia Park left a voicemail for Alan Trent.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 10,
+        "type": "Person"
+      },
+      {
+        "start": 32,
+        "end": 42,
+        "type": "Person"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 32,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "field-09",
+    "text": "The witness alleged that Mei Walsh later called Idris Glen.",
+    "mentions": [
+      {
+        "start": 25,
+        "end": 34,
+        "type": "Person"
+      },
+      {
+        "start": 48,
+        "end": 58,
+        "type": "Person"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 25,
+        "target": 48,
+        "type": "Communication",
+        "status": "Unverified claim"
+      }
+    ]
+  },
+  {
+    "id": "field-10",
+    "text": "Marta Pike was called by Amir West.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 10,
+        "type": "Person"
+      },
+      {
+        "start": 25,
+        "end": 34,
+        "type": "Person"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 25,
+        "target": 0,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "field-11",
+    "text": "Nora Hunt met Theo Swift by the door.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 9,
+        "type": "Person"
+      },
+      {
+        "start": 14,
+        "end": 24,
+        "type": "Person"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 14,
+        "type": "Meeting",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "field-12",
+    "text": "The duty sheet records Jan Cole and Ross Wade on opposite shifts.",
+    "mentions": [
+      {
+        "start": 23,
+        "end": 31,
+        "type": "Person"
+      },
+      {
+        "start": 36,
+        "end": 45,
+        "type": "Person"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "field-13",
+    "text": "Uma West works for Firbank Transit.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 8,
+        "type": "Person"
+      },
+      {
+        "start": 19,
+        "end": 34,
+        "type": "Organisation"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 19,
+        "type": "Association",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "field-14",
+    "text": "Neil Frost and Amy Shaw sat together during the briefing.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 10,
+        "type": "Person"
+      },
+      {
+        "start": 15,
+        "end": 23,
+        "type": "Person"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 0,
+        "target": 15,
+        "type": "Meeting",
+        "status": "Directly reported"
+      }
+    ]
+  },
+  {
+    "id": "field-15",
+    "text": "Dora May and Leon Grey appear in two unrelated directories.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 8,
+        "type": "Person"
+      },
+      {
+        "start": 13,
+        "end": 22,
+        "type": "Person"
+      }
+    ],
+    "relationships": []
+  },
+  {
+    "id": "field-16",
+    "text": "Pia Ford answered a call from Liam Wood.",
+    "mentions": [
+      {
+        "start": 0,
+        "end": 8,
+        "type": "Person"
+      },
+      {
+        "start": 30,
+        "end": 39,
+        "type": "Person"
+      }
+    ],
+    "relationships": [
+      {
+        "source": 30,
+        "target": 0,
+        "type": "Communication",
+        "status": "Directly reported"
+      }
+    ]
+  }
+]

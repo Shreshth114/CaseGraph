@@ -4,6 +4,7 @@ import json
 import os
 import re
 from collections import defaultdict
+from datetime import datetime
 from difflib import SequenceMatcher
 from functools import lru_cache
 from hashlib import sha256
@@ -186,7 +187,12 @@ def graph_payload(nodes, edges):
         positions = nx.spring_layout(layout_graph, seed=42, weight=None)
     else:
         positions = nx.circular_layout(layout_graph)
-    payload = [dict(node, x=float(positions[key][0]), y=float(positions[key][1]), degree=graph.degree[key],
+    weights = defaultdict(int)
+    for edge in edges:
+        if "weight" in edge and edge["decision"] != "rejected" and edge["status"] == "Directly reported":
+            weights[edge["source"]] += edge["weight"]
+            weights[edge["target"]] += edge["weight"]
+    payload = [dict(node, activity_weight=weights[key], x=float(positions[key][0]), y=float(positions[key][1]), degree=graph.degree[key],
                     centrality=round(degree[key], 4), community=group_map.get(key))
                for key, node in nodes.items()]
     return dict(nodes=payload, edges=edges, communities=len(groups), model=model()[1])
@@ -258,7 +264,10 @@ def extract_network(reports, enhanced=True, expanded=True, detector=None, contex
         for mention in mentions:
             name = mention["name"].casefold()
             marker = mention["marker"]
-            ids[mention["start"]] = marker or f'{report["id"]}:{mention["type"]}:{name}'
+            local_id = f'{report["id"]}:{mention["type"]}:{name}'
+            if mention["type"] == "Person":
+                local_id = f'{report["id"]}:person:{mention["start"]}'
+            ids[mention["start"]] = marker or local_id
         for left, right, sentence in aliases:
             if left["marker"] and right["marker"] and left["marker"] != right["marker"]:
                 review.append(dict(report=report["id"], sentence=sentence, reason="Alias claim has conflicting record IDs"))
@@ -268,10 +277,7 @@ def extract_network(reports, enhanced=True, expanded=True, detector=None, contex
                 review.append(dict(report=report["id"], sentence=sentence, reason="Uncertain alias claim"))
                 continue
             resolution[chosen].append(dict(report=report["id"], sentence=sentence))
-            names = {left["name"].casefold(), right["name"].casefold()}
-            for mention in mentions:
-                if mention["type"] == "Person" and mention["name"].casefold() in names and not mention["marker"]:
-                    ids[mention["start"]] = chosen
+            ids[left["start"]] = ids[right["start"]] = chosen
         for mention in mentions:
             offset = mention["start"]
             if mention.get("ambiguous_surname"):
@@ -283,17 +289,22 @@ def extract_network(reports, enhanced=True, expanded=True, detector=None, contex
                 ids[offset] = ids[mention["antecedent"]]
             key = ids[offset]
             node = nodes.setdefault(key, dict(id=key, label=mention["name"], type=mention["type"], names=[], reports=[]))
+            if mention["marker"]:
+                node["record_id"] = mention["marker"]
             if mention["name"] not in node["names"]:
                 node["names"].append(mention["name"])
             if report["id"] not in node["reports"]:
                 node["reports"].append(report["id"])
-                sentence = next((text for start, end, text in evidence_sentences if start <= mention["start"] < end), "")
-                node.setdefault("identity_evidence", []).append(dict(report=report["id"], sentence=sentence))
+            sentence = next((text for start, end, text in evidence_sentences if start <= offset < end), "")
+            node.setdefault("identity_evidence", []).append(dict(report=report["id"], start=offset,
+                                                              end=mention["end"], sentence=sentence))
             mention_nodes[(report["id"], mention["start"], mention["end"], mention["type"])] = key
         for claim in claims:
             source, target = ids[claim["source"]], ids[claim["target"]]
             if source != target:
-                edges.append(dict(claim, source=source, target=target, id=f"e{len(edges)}"))
+                key = (report["id"], claim["source"], claim["target"], claim["type"], claim["status"])
+                edges.append(dict(claim, source=source, target=target, source_offset=claim["source"],
+                                  target_offset=claim["target"], id="claim-" + evidence_hash(key)[:24]))
     if enhanced:
         review = identity_candidates(nodes, edges, review)
     else:
@@ -319,6 +330,11 @@ def extract_network(reports, enhanced=True, expanded=True, detector=None, contex
         if key in nodes:
             nodes[key]["aliases"] = evidence
     return nodes, edges, review, mention_nodes
+
+def evidence_hash(value):
+    data = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return sha256(data.encode("utf-8")).hexdigest()
+
 
 def reviewed_graph(nodes, edges, review, reports, decisions=()):
     suggestions = {}
@@ -346,7 +362,17 @@ def reviewed_graph(nodes, edges, review, reports, decisions=()):
         if choice not in ("accepted", "rejected", "cleared"):
             raise ValueError("A review decision must be accepted, rejected, or cleared.")
         latest[item["target"]] = choice
-        history.append(dict(target=item["target"], decision=choice))
+        action = dict(target=item["target"], decision=choice)
+        if "at" in item:
+            if not isinstance(item["at"], str) or len(item["at"]) > 40:
+                raise ValueError("Invalid review timestamp.")
+            datetime.fromisoformat(item["at"])
+            action["at"] = item["at"]
+        if "note" in item:
+            if not isinstance(item["note"], str) or len(item["note"]) > 300:
+                raise ValueError("Review notes must fit in 300 characters.")
+            action["note"] = item["note"]
+        history.append(action)
 
     accepted = nx.Graph()
     accepted.add_nodes_from(nodes)
@@ -354,7 +380,13 @@ def reviewed_graph(nodes, edges, review, reports, decisions=()):
         proposal["decision"] = latest.get(key, "cleared")
         if proposal["decision"] == "accepted":
             accepted.add_edge(*(record["id"] for record in proposal["records"]))
-    canonical = {key: min(group) for group in nx.connected_components(accepted) for key in group}
+    canonical = {}
+    for group in nx.connected_components(accepted):
+        markers = {nodes[key]["record_id"] for key in group if nodes[key].get("record_id")}
+        if len(markers) > 1:
+            raise ValueError("The proposed merge conflicts with distinct explicit person IDs.")
+        root = next(iter(markers)) if markers else min(group)
+        canonical.update(dict.fromkeys(group, root))
     for proposal in suggestions.values():
         a, b = (canonical[record["id"]] for record in proposal["records"])
         if proposal["decision"] == "rejected" and a == b:
@@ -376,7 +408,10 @@ def reviewed_graph(nodes, edges, review, reports, decisions=()):
              decision=latest.get(edge["id"], "cleared"))
         for edge in edges
     ]
-    return dict(graph_payload(merged, reviewed_edges), review=notices + list(suggestions.values()),
+    # Fingerprint original evidence and review targets before applying any decisions.
+    source_version = evidence_hash(["network-extraction-v2", reports, nodes, edges, review, model()[1]])
+    return dict(graph_payload(merged, reviewed_edges), source_version=source_version,
+                review=notices + list(suggestions.values()),
                 reports=reports, decisions=history)
 
 def analyze(reports, decisions=()):

@@ -1,14 +1,17 @@
 """Local Flask server for the investigation workspace."""
 import argparse
+from functools import lru_cache
 
 from flask import Flask, jsonify, request
 
 from analysis_engine import analyze, evaluate, montagna
+from validation.check import custody_results, field_results
 from benchmark import hand_written_reports
 from corpus import examples
+from lead_finder import demo_answer, demo_case, lead_graph
 
 app = Flask(__name__, static_url_path="/assets")
-app.config["MAX_CONTENT_LENGTH"] = 450_000
+app.config["MAX_CONTENT_LENGTH"] = 1_500_000
 
 @app.get("/")
 def home():
@@ -29,9 +32,22 @@ def benchmark_input():
 def montagna_graph():
     return jsonify(montagna())
 
+@app.get("/api/lead")
+def lead_case():
+    return jsonify(lead_graph(demo_case()))
+
+@app.get("/api/lead/answer")
+def reveal_lead_answer():
+    return jsonify(demo_answer())
+
 @app.get("/api/evaluation")
 def evaluation():
-    return jsonify(evaluate())
+    return jsonify(dict(evaluate(), release=release_evaluation()))
+
+
+@lru_cache(maxsize=1)
+def release_evaluation():
+    return dict(field=field_results(), custody=custody_results())
 
 @app.post("/api/analyze")
 def analyze_reports():
@@ -59,9 +75,15 @@ def update_review():
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
         raise ValueError("Provide a dataset and its review decisions.")
-    dataset, decisions = body.get("dataset"), body.get("decisions")
+    return jsonify(reviewed_case(body, body.get("decisions")))
+
+
+def reviewed_case(body, decisions):
+    dataset = body.get("dataset")
     if dataset == "montagna":
-        return jsonify(montagna(decisions))
+        return montagna(decisions)
+    if dataset == "lead":
+        return lead_graph(demo_case(), decisions)
     if dataset == "benchmark":
         reports = benchmark_input()
     elif dataset == "demo":
@@ -70,7 +92,22 @@ def update_review():
         reports = normalize_reports(body.get("reports"))
     else:
         raise ValueError("Choose a reviewable case.")
-    return jsonify(analyze(reports, decisions))
+    return analyze(reports, decisions)
+
+
+@app.post("/api/cases/open")
+def open_case():
+    saved = request.get_json(silent=True)
+    if not isinstance(saved, dict) or saved.get("format") != "casegraph-1":
+        raise ValueError("Choose a version 1 Casegraph case file.")
+    base = reviewed_case(saved, [])
+    if (saved.get("version") != base["source_version"] or saved.get("reports") != base["reports"]):
+        raise ValueError("Source or extraction version changed. Saved decisions require a new review.")
+    if not isinstance(saved.get("decisions"), list):
+        raise ValueError("The case is missing its review history.")
+    graph = reviewed_case(saved, saved["decisions"]) if saved["decisions"] else base
+    return jsonify(dataset=saved["dataset"], graph=graph)
+
 
 @app.errorhandler(ValueError)
 def invalid_input(error):

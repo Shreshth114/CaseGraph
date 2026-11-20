@@ -24,7 +24,7 @@ py -3.12 -m venv .venv
 .venv\Scripts\python.exe app.py
 ```
 
-Open [Casegraph](http://127.0.0.1:5050). The trained detector is identified as **Casegraph fine-tuned spaCy** in the app footer. The pretrained download is used for the baseline in **Evaluation**. Reports are processed on the local server and remain in the current browser session. If port 5050 is occupied, append `--port 5051` and open [the alternate port](http://127.0.0.1:5051).
+Open [Casegraph](http://127.0.0.1:5050). The trained detector is identified as **Casegraph fine-tuned spaCy** in the app footer. The pretrained download is used for the baseline in **Evaluation**. Reports are processed on the local server. Use **Save case** to keep a portable copy before closing the tab. If port 5050 is occupied, append `--port 5051` and open [the alternate port](http://127.0.0.1:5051).
 
 On Windows, use `.venv\Scripts\python.exe` in place of `.venv/bin/python` in the testing and training examples below.
 
@@ -35,7 +35,7 @@ For a first run, upload `demo-report.txt` and follow the [demo walkthrough](DEMO
 - **Fictional reports** loads 36 reproducible synthetic reports from `corpus.py`. The corpus includes aliases, similar names, co-mentions, denied claims, and witness accounts. These are fictional cases unrelated to the Montagna IDs.
 - **Montagna** loads the three workspace files from the [published Zenodo deposit](https://zenodo.org/records/3938818). Each edge retains the source filename, original row number, and weight. The importer excludes the meeting self-loop. Degree centrality and Louvain communities use a simple undirected graph, where repeated and reversed rows contribute a single neighbor connection. The inspector preserves individual source rows.
 - **Analyze reports** accepts new documents. spaCy extracts person, organisation, and location mentions. Explicit person record IDs such as `[P101]` provide identity evidence. Document-local alias statements can link mentions within the report. Names alone are insufficient for cross-report merges. Potential same-name conflicts and similar names with a shared surname appear in Review.
-- **Evaluation** scores entity spans and types, relationship endpoints and claim statuses, and person identity pairs. It shows the fresh contextual retest separately from the historical training comparison and regression checks.
+- **Evaluation** scores entity spans and types, relationship endpoints and claim statuses, and person identity pairs. It shows the frozen field comparison, custody outcomes and historical regression checks.
 
 ## Interpretation
 
@@ -58,7 +58,13 @@ See the [demo walkthrough](DEMO.md) for the presentation sequence.
 
 The app uses reporting context to recover names in explicit call slots and links a surname to a unique earlier full name within the report. Ambiguous surname references stay separate and appear in **Review**. The rules also recognize documented membership, addressed packets and explicit in-person joint activity.
 
-**Evaluation** separates the fresh comparison in `training/context_retest.py` from the original examples used to develop the fixes. The 17 of 17 regression result and the fresh 13 of 17 result measure different things. [See the project report](PROJECT_REPORT.md)
+Before the latest update the contextual test scored 13/17. It now scores 17/17 as a regression set. The separately frozen field set scores 11/12 with zero false positives across 16 reports. [See the project report](PROJECT_REPORT.md)
+
+## Lead Finder
+
+Open **Lead Finder** for the bundled fictional KIT-17 case. Read its incident report and compare custody records, witness statements and conflicting shift records. **Review identity match** opens the source passages for the possible Dev Rao and D. Rao match. Accepting the merge groups the custody evidence and recomputes the lead. **Reveal fictional answer** opens the case's separate reference answer after review.
+
+The demo recognizes controlled checkout, receipt and handover sentences in its five case records. It requires two independent directly reported custody records for a prioritized lead. The incident window and location determine scope, and duplicate events and origins each count once. Ties, conflicting lead evidence, pending identity matches and competing direct records at the same time or later can leave prioritization unresolved. [Demo steps](DEMO.md)
 
 ## Reproduce the NER pilot
 
@@ -75,3 +81,12 @@ Rebuild the labeled corpora, validate, and train from the project folder with Py
 ```
 
 The `training/data` folder contains the readable JSONL annotations and the compiled `.spacy` corpora. The final comparison uses `training/test_reports.py`. Its reports are separate from the training and development cases. [See the results and limitations](PROJECT_REPORT.md).
+
+
+## Continue a case and explore the evidence
+
+- **Save case** downloads a JSON file with source reports and timestamped review decisions. **Open saved case** restores it after a refresh. A changed source or extraction fingerprint requires another review. Store saved files with the same care as the original reports.
+- **Timeline** in Lead Finder orders custody and shift records by time. Select an entry for its original passage. **Source coverage** distinguishes parsed passages, narrative context and unread records. An unread candidate record pauses prioritization.
+- **Paths** finds a shortest connection through directly reported, unrejected evidence. Each hop lists all qualifying rows in either direction. **Size by source weight** in Montagna compares total incident weight with the default distinct-neighbor view. Degree centrality and communities keep their original definitions.
+- **Evaluation** includes the three custody cases and the frozen field-set comparison. Run `.venv/bin/python -m validation.check` for the machine-readable scores. [Annotation guide](ANNOTATION_GUIDE.md)
+- Build the submission using `.venv/bin/python package_submission.py`. The resulting `dist/Casegraph-submission.zip` includes a SHA-256 manifest and the tests.

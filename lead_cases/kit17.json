@@ -1,0 +1,42 @@
+{
+  "id": "kit17",
+  "title": "The missing field recorder",
+  "question": "Who last handled KIT-17 at the media returns desk?",
+  "item": "KIT-17",
+  "date": "2026-09-18",
+  "location": "media returns desk",
+  "window": {"start": "15:00", "end": "15:15"},
+  "reports": [
+    {
+      "id": "LF-01",
+      "name": "Incident report",
+      "kind": "context",
+      "origin": "Media desk supervisor",
+      "text": "On 18 September, staff found field recorder KIT-17 missing at 15:30. The records under review cover the 15:00 to 15:15 handover at the media returns desk."
+    },
+    {
+      "id": "LF-02",
+      "name": "Equipment checkout log",
+      "origin": "Equipment register",
+      "text": "At 15:06, Dev Rao [P102] checked out KIT-17 at the media returns desk."
+    },
+    {
+      "id": "LF-03",
+      "name": "Handover note",
+      "origin": "Returns desk clerk",
+      "text": "At 15:12, D. Rao [P104] received KIT-17 at the media returns desk."
+    },
+    {
+      "id": "LF-04",
+      "name": "Witness account",
+      "origin": "Hallway witness",
+      "text": "At 15:10, Mira Sen [P101] reportedly received KIT-17 at the media returns desk."
+    },
+    {
+      "id": "LF-05",
+      "name": "Shift register",
+      "origin": "Reception shift supervisor",
+      "text": "From 15:00 to 15:20, Mira Sen [P101] was logged at the east reception desk."
+    }
+  ]
+}

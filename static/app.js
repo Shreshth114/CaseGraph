@@ -1,10 +1,11 @@
 const byId = id => document.getElementById(id);
 const canvas = byId("graph");
 const ctx = canvas.getContext("2d");
-const colors = { Person: "#68e0cd", Organisation: "#d1a6ff", Location: "#f4cd86" };
+const colors = { Person: "#68e0cd", Organisation: "#d1a6ff", Location: "#f4cd86", Item: "#91bdff" };
 const views = {
   demo: ["Fictional report network", "Explore 36 fictional reports with labeled identities and relationship examples."],
   benchmark: ["Hand-written report network", "Review report evidence and candidate identities without preassigned record IDs."],
+  lead: ["Lead Finder", "Review custody evidence in the fictional missing-recorder case."],
   montagna: ["Montagna network", "Explore meetings and calls from the published investigation dataset."],
   custom: ["Uploaded report network", "Review extracted entities and the sentences that support each finding."],
   evaluation: ["Extraction evaluation", "Precision, recall, and F1 on held-out fictional reports."]
@@ -13,6 +14,8 @@ let data, nodes, view, panel = "entities", selected, requestNumber = 0;
 let zoom = 1, pan = [0, 0], drag;
 const cases = new Map();
 let reviewing = false;
+let revealedLeadAnswer = null;
+let pathEnds = [];
 function element(tag, text, cls) {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -41,21 +44,33 @@ async function fetchJSON(url, options) {
 }
 function setHeading(next) {
   view = next;
+  byId("save-case").disabled = next === "evaluation";
   byId("title").textContent = views[next][0];
   byId("description").textContent = views[next][1];
   toggleActive("[data-view]", "view", next);
   byId("workspace").hidden = next === "evaluation";
+  document.querySelector('[data-panel="leads"]').hidden = next !== "lead";
+  document.querySelector('[data-panel="timeline"]').hidden = next !== "lead";
+  byId("weight-control").hidden = next !== "montagna";
+  byId("item-key").hidden = next !== "lead";
   byId("evaluation").hidden = next !== "evaluation";
 }
 function showGraph(next, result) {
   cases.set(next, result);
   if (next === "custom") document.querySelector('[data-view="custom"]').hidden = false;
   data = result;
+  pathEnds = [];
+  byId("weighted").checked = false;
   nodes = new Map(result.nodes.map(node => [node.id, node]));
   selected = null;
-  panel = "entities";
+  panel = next === "lead" ? "leads" : "entities";
   byId("search").value = "";
-  byId("filter").value = "";
+  const types = next === "lead" ? [...new Set(result.edges.map(edge => edge.type))] : ["Meeting", "Communication", "Association"];
+  byId("filter").replaceChildren(...[["", "All types"], ...types.map(type => [type, type])].map(([value, label]) => {
+    const option = element("option", label);
+    option.value = value;
+    return option;
+  }));
   setHeading(next);
   byId("model").textContent = next === "montagna" ? "Source · Montagna Operation / Zenodo" : result.model;
   byId("status").textContent = result.nodes.length ? "" : "No entities were extracted from these reports.";
@@ -79,12 +94,12 @@ async function load(next) {
     if (token !== requestNumber) return;
     if (next !== "evaluation") return showGraph(next, result);
     setHeading(next);
-    stats([["New retest reports", result.contextual.after.reports], ["NER test reports", result.training.pretrained.reports]]);
+    stats([["Field reports", result.release.field.current.reports], ["Custody cases", result.release.custody.length]]);
     byId("status").textContent = "";
     const active = result.training.selected === "pilot" ? result.training.pilot : result.training.pretrained;
     byId("model").textContent = "Active detector · " + active.model;
-    const contextualBefore = scoreTable("New retest · Previous rules", result.contextual.before);
-    const contextualAfter = scoreTable("New retest · Contextual rules", result.contextual.after);
+    const contextualBefore = scoreTable("Known contextual cases · Earlier rules", result.contextual.before);
+    const contextualAfter = scoreTable("Known contextual cases · Current regression", result.contextual.after);
     const regression = metricsTable("Original test reused for regression checks", [
       ["Before contextual changes", result.contextual.regression_before],
       ["After contextual changes", result.contextual.regression_after]
@@ -103,8 +118,18 @@ async function load(next) {
     ]);
     const diagnosis = scoreTable("Development set · Hand-written reports", result.diagnosis);
     const templates = scoreTable("Development comparison · Templates with IDs", result.templates);
-    byId("evaluation").replaceChildren(contextualBefore, contextualAfter,
-      element("p", "The new retest uses different reports from the original model test. The original misses informed the new rules and are shown as regression checks.", "muted"),
+    const field = result.release.field;
+    const custody = element("section", undefined, "score-section");
+    custody.append(element("h2", "Custody validation · three fictional cases"));
+    for (const row of result.release.custody) {
+      custody.append(element("p", row.case + " · Expected " + (row.expected || "abstain")
+        + " · Result " + (row.actual || "abstain") + " · " + row.reason
+        + (row.citations ? " Citations matched." : " Check citations.")));
+    }
+    byId("evaluation").replaceChildren(metricsTable("Frozen field set · 16 fictional reports", [
+      ["Previous relationships", field.previous.relationships], ["Current relationships", field.current.relationships],
+      ...Object.entries(field.current.types)]), custody, contextualBefore, contextualAfter,
+      element("p", "The contextual and original model tests now include examples used to develop rules. The field set was frozen before this update. All three sets use fictional reports.", "muted"),
       regression, pretrained, fineTuned,
       element("p", "Both models use the same relationship and identity rules on the final NER test. Entity scoring matches exact spans and types. Relationship scoring matches both mention offsets, type and status.", "muted"),
       previous, updated, diagnostic, diagnosis, templates);
@@ -138,14 +163,18 @@ function exportReview() {
   const reviewedTargets = new Set(data.decisions.map(item => item.target));
   const record = { dataset: view, decisions: data.decisions, edges: data.edges.filter(edge => reviewedTargets.has(edge.id)),
     identityProposals: data.review.filter(item => reviewedTargets.has(item.id)) };
-  const url = URL.createObjectURL(new Blob([JSON.stringify(record, null, 2)], { type: "application/json" }));
+  downloadJSON(record, "casegraph-" + view + "-review.json");
+}
+
+function downloadJSON(record, filename) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(record)], { type: "application/json" }));
   const link = element("a");
   link.href = url;
-  link.download = "casegraph-" + view + "-review.json";
+  link.download = filename;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-async function decide(target, decision) {
+async function decide(target, decision, note) {
   if (reviewing) return;
   reviewing = true;
   const caseView = view, original = data;
@@ -155,7 +184,7 @@ async function decide(target, decision) {
     const result = await fetchJSON("/api/review", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dataset: caseView, reports: caseView === "custom" ? original.reports : undefined,
-        decisions: [...original.decisions, { target, decision }] })
+        decisions: [...original.decisions, { target, decision, at: new Date().toISOString(), note }] })
     });
     if (cases.get(caseView) !== original) return;
     cases.set(caseView, result);
@@ -175,12 +204,17 @@ async function decide(target, decision) {
 }
 function reviewActions(target, current, noun) {
   const actions = element("div", undefined, "review-actions");
+  const note = element("input");
+  note.placeholder = "Optional review note";
+  note.setAttribute("aria-label", note.placeholder);
+  note.maxLength = 300;
+  actions.append(note);
   const candidateActions = [["accepted", "Accept " + noun], ["rejected", "Reject " + noun], ["cleared", "Clear decision"]];
   for (const [decision, label] of candidateActions) {
     if (decision === current) continue;
     const action = element("button", label);
     action.disabled = reviewing;
-    action.onclick = () => decide(target, decision);
+    action.onclick = () => decide(target, decision, note.value);
     actions.append(action);
   }
   return actions;
@@ -210,6 +244,141 @@ function edgeButton(edge) {
   return button(nodes.get(edge.source).label + " · " + nodes.get(edge.target).label,
     () => select("edge", edge), edge.type + " · " + edge.status + (edge.decision !== "cleared" ? " · " + decisionLabel(edge.decision) : ""));
 }
+function openPanel(next) {
+  panel = next;
+  selected = null;
+  inspect();
+  draw();
+}
+
+async function revealLeadAnswer(control) {
+  control.disabled = true;
+  try {
+    revealedLeadAnswer = await fetchJSON("/api/lead/answer");
+    if (view === "lead" && panel === "leads" && !selected) inspect();
+  } catch (error) {
+    if (view === "lead") byId("status").textContent = error.message;
+    control.disabled = false;
+  }
+}
+
+function leadEvidence(card, heading, edgeIds) {
+  if (!edgeIds.length) return;
+  card.append(element("h4", heading));
+  for (const id of edgeIds) {
+    const edge = data.edges.find(item => item.id === id);
+    const report = data.reports.find(item => item.id === edge.report);
+    card.append(button(report.name, () => select("edge", edge),
+      edge.origin + " · " + edge.status + (edge.time ? " · " + edge.time : "")));
+  }
+}
+
+function inspectLeads(box) {
+  const incident = data.case;
+  const brief = element("details", undefined, "lead-brief");
+  brief.append(element("summary", "Read incident report"), element("pre", data.reports[0].text));
+  box.append(element("h3", incident.title),
+    element("p", incident.question, "lead-question"),
+    element("p", incident.date + " · " + incident.window.start + "–" + incident.window.end, "caption"), brief);
+  box.append(element("p", data.lead.strongest ? "Strongest lead to follow up" : data.lead.reason, "lead-result"));
+  const coverage = element("details");
+  const parsed = data.passages.filter(row => row.outcome === "parsed").length;
+  coverage.append(element("summary", "Source coverage · " + parsed + " of " + data.passages.length + " passages parsed"));
+  for (const row of data.passages) {
+    coverage.append(element("p", row.report + " · line " + row.line + " · " + row.outcome, "caption"),
+      element("blockquote", row.text));
+  }
+  box.append(coverage);
+  for (const lead of data.lead.cards) {
+    const strongest = lead.id === data.lead.strongest;
+    const card = element("article", undefined, strongest ? "review-card lead-highlight" : "review-card");
+    card.append(element("h3", lead.name),
+      element("p", lead.count + (lead.count === 1 ? " independent custody record" : " independent custody records"), "caption"));
+    if (strongest) card.append(element("p", data.lead.reason, "caption"));
+    if (lead.names.length > 1) card.append(element("p", "Names in reviewed records · " + lead.names.join(", "), "caption"));
+    if (lead.latest) card.append(element("p", "Latest direct handling record · " + lead.latest, "caption"));
+    if (lead.pending_matches.length) {
+      card.append(button("Review identity match", () => openPanel("review"),
+        "An initial and surname match needs confirmation."));
+    }
+    leadEvidence(card, "Independent support", lead.support);
+    leadEvidence(card, "Other custody evidence", lead.other);
+    leadEvidence(card, "Conflicting record", lead.conflicts);
+    box.append(card);
+  }
+  if (!revealedLeadAnswer) {
+    const reveal = element("button", "Reveal fictional answer", "item");
+    reveal.onclick = () => revealLeadAnswer(reveal);
+    box.append(reveal);
+  } else {
+    const answer = element("article", undefined, "review-card lead-answer");
+    answer.append(element("h3", "Fictional answer"), element("strong", revealedLeadAnswer.person),
+      element("p", revealedLeadAnswer.explanation));
+    box.append(answer);
+  }
+}
+
+function inspectTimeline(box) {
+  box.append(element("h3", data.case.date + " · " + data.case.item));
+  const entries = [...data.edges].sort((a, b) =>
+    (a.time || a.start).localeCompare(b.time || b.start) || a.id.localeCompare(b.id));
+  const conflicts = new Set(data.lead.cards.flatMap(card => card.conflicts));
+  for (const edge of entries) {
+    const time = edge.time || edge.start + "–" + edge.end;
+    const title = time + " · " + nodes.get(edge.source).label + " · " + edge.type;
+    const context = [edge.role, edge.location, edge.origin, edge.status];
+    if (conflicts.has(edge.id)) context.push("Conflicting evidence");
+    if (edge.decision === "rejected") context.push("Rejected in review");
+    box.append(button(title, () => select("edge", edge), context.join(" · ")));
+  }
+}
+
+function inspectPath(box) {
+  box.append(element("h3", "Trace a connection"),
+    element("p", "Paths use directly reported, unrejected links in either direction. Open each row to inspect the original endpoints.", "caption"));
+  const choices = [...nodes.values()].sort((a, b) => a.label.localeCompare(b.label));
+  for (const [i, label] of ["From", "To"].entries()) {
+    const selectNode = element("select");
+    selectNode.id = "path-end-" + i;
+    const caption = element("label", label);
+    caption.htmlFor = selectNode.id;
+    selectNode.append(new Option("Choose entity", ""));
+    for (const node of choices) selectNode.append(new Option(node.label + " · " + node.id, node.id));
+    selectNode.value = pathEnds[i] || "";
+    selectNode.onchange = () => { pathEnds[i] = selectNode.value; inspect(); };
+    box.append(caption, selectNode);
+  }
+  const [start, end] = pathEnds;
+  if (!nodes.has(start) || !nodes.has(end)) return;
+  if (start === end) { box.append(element("p", "Choose two different entities.")); return; }
+  const adjacency = new Map(choices.map(node => [node.id, new Map()]));
+  for (const edge of data.edges) {
+    if (edge.status !== "Directly reported" || edge.decision === "rejected" || edge.source === edge.target) continue;
+    for (const [a, b] of [[edge.source, edge.target], [edge.target, edge.source]]) {
+      const neighbors = adjacency.get(a);
+      if (!neighbors.has(b)) neighbors.set(b, []);
+      neighbors.get(b).push(edge);
+    }
+  }
+  const previous = new Map([[start, null]]);
+  const queue = [start];
+  for (let i = 0; i < queue.length && !previous.has(end); i++) {
+    for (const neighbor of adjacency.get(queue[i]).keys()) {
+      if (previous.has(neighbor)) continue;
+      previous.set(neighbor, queue[i]);
+      queue.push(neighbor);
+    }
+  }
+  if (!previous.has(end)) { box.append(element("p", "No qualifying path in this case.")); return; }
+  const hops = [];
+  for (let b = end; b !== start; b = previous.get(b)) hops.unshift([previous.get(b), b]);
+  for (const [a, b] of hops) {
+    const edges = adjacency.get(a).get(b);
+    box.append(element("h4", nodes.get(a).label + " ↔ " + nodes.get(b).label + " · " + edges.length + " source rows"));
+    for (const edge of edges) box.append(button(edge.report + " · " + edge.type, () => select("edge", edge), edge.sentence));
+  }
+}
+
 function inspect() {
   const box = byId("details");
   box.replaceChildren();
@@ -223,6 +392,9 @@ function inspect() {
     box.append(element("h3", edge.type), badge,
       element("p", nodes.get(edge.source).label + " · " + nodes.get(edge.target).label),
       element("p", edge.report + (report?.name ? " · " + report.name : ""), "caption"), element("blockquote", edge.sentence));
+    if (edge.origin) {
+      box.append(element("p", edge.origin + (edge.time ? " · " + edge.time : "") + " · " + edge.location, "caption"));
+    }
     if (report) {
       const details = element("details");
       details.append(element("summary", "Read original report"), element("pre", report.text));
@@ -236,6 +408,8 @@ function inspect() {
     box.append(element("h3", node.label), element("p", node.type + " · " + node.id, "caption"),
       element("p", "Degree " + node.degree + " · Centrality " + node.centrality
         + (node.community ? " · Community " + node.community : "")));
+    if (view === "montagna") box.append(element("p", "Total source weight · " + node.activity_weight,
+      "caption"), element("p", "Sums incident meeting and call row weights in both directions.", "caption"));
     if (node.names.length > 1) box.append(element("p", "Names · " + node.names.join(", "), "caption"));
     if (node.reports?.length) box.append(element("p", "Reports · " + node.reports.join(", "), "caption"));
     for (const alias of node.aliases || []) {
@@ -249,12 +423,24 @@ function inspect() {
     if (!claims.length) box.append(element("p", "No matching relationship evidence.", "muted"));
     return;
   }
-  if (panel === "evidence") {
+  if (panel === "leads") {
+    inspectLeads(box);
+  } else if (panel === "timeline") {
+    inspectTimeline(box);
+  } else if (panel === "paths") {
+    inspectPath(box);
+  } else if (panel === "evidence") {
     const edges = visibleEdges();
     box.append(...edges.map(edgeButton));
     if (!edges.length) box.append(element("p", "No matching relationship evidence.", "muted"));
   } else if (panel === "review") {
     if (data.decisions.length) {
+      const history = element("details");
+      history.append(element("summary", "Review actions · " + data.decisions.length));
+      for (const action of data.decisions) {
+        history.append(element("p", [action.at, action.target, action.decision, action.note].filter(Boolean).join(" · ")));
+      }
+      box.append(history);
       box.append(button("Download review history", exportReview,
         data.decisions.length + " recorded actions · available during this browser session"));
     }
@@ -329,7 +515,9 @@ function draw() {
     ctx.globalAlpha = matches(node) ? 1 : .18;
     ctx.fillStyle = colors[node.type];
     ctx.beginPath();
-    ctx.arc(x, y, (focused ? 7 : 4) + Math.min(node.degree, 10) / 3, 0, Math.PI * 2);
+    const size = view === "montagna" && byId("weighted").checked
+      ? Math.min(Math.sqrt(node.activity_weight), 18) : Math.min(node.degree, 10) / 3;
+    ctx.arc(x, y, (focused ? 7 : 4) + size, 0, Math.PI * 2);
     ctx.fill();
     if (focused || zoom > 1.45 || (data.nodes.length <= 45) || (byId("search").value && matches(node))) {
       ctx.font = "12px system-ui";
@@ -383,10 +571,11 @@ canvas.addEventListener("wheel", event => {
 new ResizeObserver(draw).observe(canvas);
 document.querySelectorAll("[data-view]").forEach(node => { node.onclick = () => load(node.dataset.view); });
 document.querySelectorAll("[data-panel]").forEach(node => {
-  node.onclick = () => { panel = node.dataset.panel; selected = null; inspect(); draw(); };
+  node.onclick = () => openPanel(node.dataset.panel);
 });
 byId("clear").onclick = () => { selected = null; inspect(); draw(); };
 byId("reset").onclick = reset;
+byId("weighted").onchange = draw;
 for (const id of ["search", "filter"]) byId(id).oninput = () => { selected = null; inspect(); draw(); };
 byId("open-input").onclick = () => byId("input-dialog").showModal();
 byId("close-input").onclick = () => byId("input-dialog").close();
@@ -414,6 +603,29 @@ byId("report-form").onsubmit = async event => {
     byId("input-status").textContent = error.message;
   } finally {
     submit.disabled = false;
+  }
+};
+byId("save-case").onclick = () => {
+  if (!data || reviewing || view === "evaluation") return;
+  downloadJSON({ format: "casegraph-1", version: data.source_version, dataset: view,
+    reports: data.reports, decisions: data.decisions }, "casegraph-" + view + ".json");
+};
+byId("open-case").onclick = () => byId("case-file").click();
+byId("case-file").onchange = async event => {
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (!file) return;
+  const token = ++requestNumber;
+  try {
+    if (file.size > 1500000) throw new Error("Case file exceeds the size limit.");
+    const opened = await fetchJSON("/api/cases/open", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: await file.text() });
+    if (token !== requestNumber) return;
+    revealedLeadAnswer = null;
+    showGraph(opened.dataset, opened.graph);
+    byId("status").textContent = "Saved case restored.";
+  } catch (error) {
+    if (token === requestNumber) byId("status").textContent = error.message;
   }
 };
 load("demo");

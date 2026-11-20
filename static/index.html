@@ -12,6 +12,7 @@
 <nav aria-label="Dataset">
 <button data-view="demo" class="active">Fictional reports</button>
 <button data-view="benchmark">Hand-written cases</button>
+<button data-view="lead">Lead Finder</button>
 <button data-view="montagna">Montagna</button>
 <button data-view="custom" hidden>Uploaded reports</button>
 <button data-view="evaluation">Evaluation</button>
@@ -19,14 +20,15 @@
 <main>
 <section class="intro"><div><p class="overline">Investigation workspace</p><h1 id="title">Fictional report network</h1><p id="description">Explore entities, reported connections, and the evidence behind each edge.</p></div>
 <div class="stats" id="stats"></div></section>
+<div class="case-files"><button id="save-case" disabled>Save case</button> <button id="open-case">Open saved case</button><input id="case-file" type="file" accept=".json" hidden></div>
 <p id="status" role="status"></p>
 <section class="workspace" id="workspace">
 <div class="graph-card">
-<div class="toolbar"><label for="search">Find entity</label><input id="search" type="search" placeholder="Name or ID"><label for="filter">Relationship</label><select id="filter"><option value="">All types</option><option>Meeting</option><option>Communication</option><option>Association</option></select><button id="reset">Reset view</button></div>
+<div class="toolbar"><label for="search">Find entity</label><input id="search" type="search" placeholder="Name or ID"><label for="filter">Relationship</label><select id="filter"><option value="">All types</option><option>Meeting</option><option>Communication</option><option>Association</option></select><label id="weight-control" hidden><input id="weighted" type="checkbox"> Size by source weight</label><button id="reset">Reset view</button></div>
 <canvas id="graph" aria-label="Interactive entity graph. Use the inspector for keyboard-accessible entity and evidence lists."></canvas>
-<div class="legend"><span><i class="dot people"></i> Person</span><span><i class="dot org"></i> Organisation</span><span><i class="dot place"></i> Location</span><span><i class="line"></i> Directly reported</span><span><i class="line uncertain"></i> Unverified</span><span><i class="line denied"></i> Denied</span></div>
+<div class="legend"><span><i class="dot people"></i> Person</span><span><i class="dot org"></i> Organisation</span><span><i class="dot place"></i> Location</span><span id="item-key" hidden><i class="dot item-key"></i> Item</span><span><i class="line"></i> Directly reported</span><span><i class="line uncertain"></i> Unverified</span><span><i class="line denied"></i> Denied</span></div>
 </div>
-<aside class="inspector"><div class="panel-header"><h2>Inspector</h2><button id="clear" hidden>Clear selection</button></div><div class="panel-tabs"><button data-panel="entities" class="active">Entities</button><button data-panel="evidence">Evidence</button><button data-panel="review">Review</button></div><div id="details" class="details"></div></aside>
+<aside class="inspector"><div class="panel-header"><h2>Inspector</h2><button id="clear" hidden>Clear selection</button></div><div class="panel-tabs"><button data-panel="leads" hidden>Leads</button><button data-panel="timeline" hidden>Timeline</button><button data-panel="paths">Paths</button><button data-panel="entities" class="active">Entities</button><button data-panel="evidence">Evidence</button><button data-panel="review">Review</button></div><div id="details" class="details"></div></aside>
 </section>
 <section id="evaluation" class="graph-card evaluation" hidden></section>
 </main>
