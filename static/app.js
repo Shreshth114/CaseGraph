@@ -309,8 +309,10 @@ function edgeButton(edge) {
     () => select("edge", edge), edge.type + " · " + edge.status + (edge.decision !== "cleared" ? " · " + decisionLabel(edge.decision) : ""));
 }
 function openPanel(next) {
-  if (next === "chat" && selected?.type === "edge") {
-    caseChat(data).edge = selected.value.id;
+  if (next === "chat" && (selected?.type === "edge" || selected?.type === "node")) {
+    const chat = caseChat(data);
+    chat.edge = selected.type === "edge" ? selected.value.id : null;
+    chat.node = selected.type === "node" ? selected.value.id : null;
   }
   panel = next;
   selected = null;

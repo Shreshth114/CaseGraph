@@ -380,6 +380,7 @@ input::placeholder, textarea::placeholder { color: var(--quiet); opacity: 1; }
 .chat-prompts button { text-align: left; white-space: normal; color: var(--accent); font-size: 12px; }
 .chat-user { width: fit-content; max-width: 90%; margin-left: auto !important; padding: 8px 11px; background: var(--accent-fill); border: 1px solid #34564e; border-radius: 12px 12px 3px 12px; }
 .chat-response { margin: 8px 0 14px; padding: 9px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px 12px 12px; font-size: 13px; }
+.chat-response > p { white-space: pre-line; }
 .chat-response > p:first-child { margin-top: 0; }
 .chat-source blockquote { margin: 8px 0 4px; font-size: 12px; }
 .chat-source .item { margin-bottom: 9px; padding-top: 6px; padding-bottom: 6px; font-size: 12px; }

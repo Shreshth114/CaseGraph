@@ -23,10 +23,18 @@ there these they this those to us was were what when where which who whom why wi
 you evidence connection connections relationship relationships claim claims say mentioned mentions
 mention details detail information related knows know summary summarize find happened
 """.split())
+PEOPLE_WORDS = {"people", "person", "persons", "individual", "individuals", "participants", "names"}
+ROSTER_WORDS = {"all", "everyone", "involved", "connected", "identify", "many", "name",
+                "network", "people", "persons", "individuals", "participants", "named"}
+ROSTER_CONTEXT = {"investigation", "file", "files", "dataset"}
 LEAD = re.compile(r"\b(?:strongest lead|lead to follow up|who (?:should|can) (?:i|we) (?:contact|ask|follow up)|insufficient evidence|prioriti[sz]\w*)\b")
 LAST = re.compile(r"\b(?:last|latest|most recent)\b.*\b(?:handl\w*|receiv\w*|had|hold\w*|custody|record\w*)\b")
 IDENTITY = re.compile(r"\b(?:same (?:name|person)|alias(?:es)?|identity|separat\w*|merge\w*|two records)\b")
-CULPABILITY = re.compile(r"\b(?:culprit|guilty|guilt|who stole|who committed|who is responsible|who (?:is|was) the (?:criminal|thief|suspect))\b")
+CULPABILITY = re.compile(r"\b(?:culprit|guilty|guilt|killer|murderer|criminal|thief|killed|murdered|stole|"
+                         r"who committed|who is responsible|did .+? (?:kill|murder|steal)|suspects?)\b")
+PROFILE = re.compile(r"\b(?:who (?:is|are|was|were)|tell me about|what do (?:we|you) know about)\b")
+PRONOUN = re.compile(r"\bwho (?:is|was) (?:she|he|this person)\b|\bwho (?:are|were) they\b")
+GREETINGS = {"hi", "hy", "hey", "hello", "hiya", "good morning", "good afternoon", "good evening"}
 REFERENCE = re.compile(r"\b(?:this|that|the selected|last|previous) (?:connection|link|claim|relationship|evidence|answer|record)\b|\bits source\b")
 LIMIT = 5
 
@@ -45,6 +53,106 @@ def citation(source, *, status=None, edge=None):
 
 def edge_citation(edge):
     return citation(edge, status=edge["status"], edge=edge["id"])
+
+
+def node_label(node, *, include_id=False):
+    label = node["label"]
+    if include_id or re.fullmatch(r"[A-Z]+[0-9]+", node["id"]):
+        label += f" [{node['id']}]"
+    aliases = [name for name in node["names"] if name != node["label"]]
+    if aliases:
+        label += f" (also recorded as {', '.join(aliases)})"
+    return label
+
+
+def people_answer(nodes, edges):
+    people = sorted((node for node in nodes.values() if node["type"] == "Person"),
+                    key=lambda node: (node["label"].casefold(), node["id"]))
+    if not people:
+        return answer("There are no person records in the open case.")
+    label_counts = {}
+    person_sources = {}
+    for edge in edges.values():
+        for key in (edge["source"], edge["target"]):
+            person_sources.setdefault(key, edge)
+    for node in people:
+        label = node["label"].casefold()
+        label_counts[label] = label_counts.get(label, 0) + 1
+    names = [node_label(node, include_id=label_counts[node["label"].casefold()] > 1) for node in people]
+    quotes = []
+    for node in people:
+        edge = person_sources.get(node["id"])
+        evidence = node.get("identity_evidence", [])
+        source = edge_citation(edge) if edge else next((citation(row) for row in evidence if row["sentence"]), None)
+        if source and source not in quotes:
+            quotes.append(source)
+        if len(quotes) == LIMIT:
+            break
+    count = f"{len(people)} {'record' if len(people) == 1 else 'records'}"
+    return answer(f"People named in the open case ({count})\n" + "\n".join(f"• {name}" for name in names), quotes)
+
+
+def follow_up_answer(graph, nodes, edges):
+    intro = "The evidence supports following up on custody of the missing KIT-17 recorder. The records leave guilt undetermined."
+    lead = graph["lead"]
+    if not lead["cards"]:
+        return answer(f"{intro} {lead['reason']}", action="leads")
+    sources = []
+    entries = []
+    for card in lead["cards"]:
+        records = [edges[key] for key in card["support"] + card["other"]]
+        if card["latest"]:
+            summary = f"Latest directly reported handling at {card['latest']}."
+        elif any(edge["status"] == "Unverified claim" for edge in records):
+            summary = "Named in an unverified custody claim."
+        else:
+            summary = "Named in a denied custody claim."
+        if card["conflicts"]:
+            summary += " The file includes conflicting evidence."
+        entries.append(f"• {node_label(nodes[card['id']])}. {summary}")
+        sources.extend(records + [edges[key] for key in card["conflicts"]])
+    strongest = lead["strongest"]
+    outcome = (f"{nodes[strongest]['label']} is the strongest follow-up lead." if strongest
+               else lead_answer(graph, edges)["message"])
+    citations = list({edge["id"]: edge_citation(edge) for edge in sources}.values())
+    return answer(f"{intro} {outcome}\n" + "\n".join(entries), citations[:LIMIT], "leads")
+
+
+def profile_answer(graph, nodes, edges, candidates):
+    people = {key for key in candidates if nodes[key]["type"] == "Person"}
+    candidates = people or candidates
+    if not candidates:
+        return dict(answer("Who do you mean? Include a name or record ID, or select an entity before opening the chat."), node=None)
+    if len(candidates) > 1:
+        choices = ", ".join(f"{nodes[key]['label']} [{key}]" for key in sorted(candidates)[:LIMIT])
+        return dict(answer(f"Which record do you mean? The case matches {choices}. Ask using the record ID."), node=None)
+
+    key = next(iter(candidates))
+    node = nodes[key]
+    name = node["label"]
+    label = node_label(node)
+    rows = [edge for edge in edges.values() if key in (edge["source"], edge["target"])]
+    card = next((card for card in graph.get("lead", {}).get("cards", []) if card["id"] == key), None)
+    if card and card["conflicts"]:
+        shift = next((edges[edge_id] for edge_id in card["conflicts"] if edges[edge_id]["type"] == "Shift record"), None)
+        if shift:
+            custody_records = (edges[edge_id] for edge_id in card["support"] + card["other"])
+            custody = next((edge for edge in custody_records if edge["status"] != "Denied"
+                            and shift["start"] <= edge["time"] <= shift["end"]
+                            and edge["location"] != shift["location"]), None)
+            if custody:
+                message = (f"The shift register places {label} at the {shift['location']} from "
+                           f"{shift['start']} to {shift['end']}. A custody record with status "
+                           f"{custody['status'].lower()} places {name} at the {custody['location']} "
+                           f"at {custody['time']}. Lead Finder flags the conflicting locations.")
+                return dict(answer(message, [edge_citation(shift), edge_citation(custody)]), node=key)
+    quotes = [edge_citation(edge) for edge in rows[:LIMIT]]
+    if not quotes:
+        quotes = [citation(source) for source in node.get("identity_evidence", [])[:LIMIT] if source["sentence"]]
+    message = f"{label} appears in the case as a {node['type'].lower()}."
+    if quotes:
+        message += " These records show what the sources say about this entity."
+    return dict(answer(message, quotes), node=key)
 
 
 def matching_nodes(question_words, nodes):
@@ -139,28 +247,64 @@ def report_matches(reports, terms):
     return matches
 
 
-def ask_case(question, graph, context_edge=None):
+def ask_case(question, graph, context_edge=None, context_node=None):
     tokens = words(question)
     terms = set(tokens)
     phrase = " ".join(tokens)
+    if phrase in GREETINGS:
+        example = "Who last handled KIT-17?" if "lead" in graph else "Which claims are unverified?"
+        return answer(f"Hi! I can help you read this case. Try “{example}” or ask who a person in the graph is.")
     nodes = {node["id"]: node for node in graph["nodes"]}
     edges = {edge["id"]: edge for edge in graph["edges"] if edge["decision"] != "rejected"}
     groups = matching_nodes(tokens, nodes)
     mentioned = set().union(*groups)
 
+    if terms.intersection({"suspect", "suspects"}) and not any(nodes[key]["type"] == "Person" for key in mentioned):
+        if graph.get("lead"):
+            return follow_up_answer(graph, nodes, edges)
+        roster = people_answer(nodes, edges)
+        roster["message"] = "These records identify people mentioned in the case. Their mention alone gives no basis to classify them as suspects.\n" + roster["message"]
+        return roster
     if CULPABILITY.search(phrase):
+        intro = ("This case concerns the missing KIT-17 recorder. " if graph.get("lead") else "")
+        intro += "The open records provide insufficient evidence to determine guilt."
+        if mentioned:
+            result = profile_answer(graph, nodes, edges, mentioned)
+            result["message"] = f"{intro} {result['message']}"
+            return result
         if graph.get("lead"):
             result = lead_answer(graph, edges)
-            result["message"] = "The records can support a follow-up lead. " + result["message"]
+            result["message"] = f"{intro} {result['message']}"
             return result
-        return answer("The case records support exploring reported connections. For an evidence-backed answer, ask about a specific person, meeting, or call.")
+        return answer(f"{intro} Ask about a person or relationship to read the underlying evidence.")
+    roster_words = QUESTION_WORDS | PEOPLE_WORDS | ROSTER_WORDS | ROSTER_CONTEXT
+    if not mentioned and terms.intersection(ROSTER_WORDS) and terms <= roster_words:
+        if "how" in terms and "many" in terms:
+            count = sum(node["type"] == "Person" for node in nodes.values())
+            return answer(f"The open case contains {count} person {'record' if count == 1 else 'records'}.")
+        return people_answer(nodes, edges)
     if IDENTITY.search(phrase) and (mentioned or not re.search(r"\band\b.*\bsame person\b", phrase)):
         return identity_answer(graph, nodes, mentioned)
     if graph.get("lead") and (LEAD.search(phrase) or LAST.search(phrase)):
         named_items = {term for term in terms if re.fullmatch(r"[a-z]+-[0-9]+", term)}
         if not named_items or graph["case"]["item"].casefold() in named_items:
             return lead_answer(graph, edges, latest=bool(LAST.search(phrase)))
-    elif REFERENCE.search(phrase):
+    profile = PROFILE.search(phrase)
+    if profile:
+        remainder = set(words(phrase[profile.end():])) - QUESTION_WORDS - {"she", "he", "person", "them", "her", "him"}
+        for key in mentioned:
+            remainder.difference_update(words(nodes[key]["id"]))
+            for name in nodes[key]["names"]:
+                remainder.difference_update(words(name))
+        if not remainder:
+            if not mentioned and PRONOUN.search(phrase):
+                edge = edges.get(context_edge)
+                if context_node in nodes:
+                    mentioned = {context_node}
+                elif edge:
+                    mentioned = {edge["source"], edge["target"]}
+            return profile_answer(graph, nodes, edges, mentioned)
+    if REFERENCE.search(phrase):
         edge = edges.get(context_edge)
         if edge:
             return answer(f"The selected {edge['type'].lower()} is marked {edge['status']}.", [edge_citation(edge)])

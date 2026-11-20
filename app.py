@@ -110,11 +110,11 @@ def case_chat():
     version = body.get("version")
     if not isinstance(version, str) or not isinstance(body.get("decisions"), list):
         raise ValueError("Open a case before asking a question.")
-    context = body.get("edge")
-    if context is not None and not isinstance(context, str):
+    edge, node = body.get("edge"), body.get("node")
+    if any(value is not None and not isinstance(value, str) for value in (edge, node)):
         raise ValueError("Invalid evidence selection.")
     graph = reviewed_case(body, body["decisions"], expected_version=version)
-    return jsonify(ask_case(question, graph, context))
+    return jsonify(ask_case(question, graph, edge, node))
 
 
 @app.post("/api/cases/open")
