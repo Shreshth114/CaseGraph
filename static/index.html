@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casegraph | Investigation workspace</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script defer src="/assets/app.js"></script>
+</head>
+<body>
+<header class="top"><div class="brand"><span class="mark" aria-hidden="true">✳</span> Casegraph</div>
+<nav aria-label="Dataset">
+<button data-view="demo" class="active">Fictional reports</button>
+<button data-view="benchmark">Hand-written cases</button>
+<button data-view="montagna">Montagna</button>
+<button data-view="custom" hidden>Uploaded reports</button>
+<button data-view="evaluation">Evaluation</button>
+</nav><button id="open-input" class="primary">Analyze reports</button></header>
+<main>
+<section class="intro"><div><p class="overline">Investigation workspace</p><h1 id="title">Fictional report network</h1><p id="description">Explore entities, reported connections, and the evidence behind each edge.</p></div>
+<div class="stats" id="stats"></div></section>
+<p id="status" role="status"></p>
+<section class="workspace" id="workspace">
+<div class="graph-card">
+<div class="toolbar"><label for="search">Find entity</label><input id="search" type="search" placeholder="Name or ID"><label for="filter">Relationship</label><select id="filter"><option value="">All types</option><option>Meeting</option><option>Communication</option><option>Association</option></select><button id="reset">Reset view</button></div>
+<canvas id="graph" aria-label="Interactive entity graph. Use the inspector for keyboard-accessible entity and evidence lists."></canvas>
+<div class="legend"><span><i class="dot people"></i> Person</span><span><i class="dot org"></i> Organisation</span><span><i class="dot place"></i> Location</span><span><i class="line"></i> Directly reported</span><span><i class="line uncertain"></i> Unverified</span><span><i class="line denied"></i> Denied</span></div>
+</div>
+<aside class="inspector"><div class="panel-header"><h2>Inspector</h2><button id="clear" hidden>Clear selection</button></div><div class="panel-tabs"><button data-panel="entities" class="active">Entities</button><button data-panel="evidence">Evidence</button><button data-panel="review">Review</button></div><div id="details" class="details"></div></aside>
+</section>
+<section id="evaluation" class="graph-card evaluation" hidden></section>
+</main>
+<footer><span id="model"></span><span>Graph patterns describe the available records. Assess findings against their source evidence.</span></footer>
+<dialog id="input-dialog"><form id="report-form"><div class="panel-header"><h2>Analyze reports</h2><button id="close-input" type="button" aria-label="Close">Close</button></div><label for="files">Upload UTF-8 text files</label><input id="files" type="file" accept=".txt,text/plain" multiple><label for="report-text">Or paste a report</label><textarea id="report-text" rows="8" placeholder="Paste an investigative report"></textarea><p class="muted">Include explicit record IDs such as [P101] where available. Files and pasted text are analyzed together.</p><p id="input-status" role="status"></p><button class="primary" type="submit">Build graph</button></form></dialog>
+</body></html>
