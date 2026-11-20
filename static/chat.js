@@ -2,7 +2,8 @@ const caseChats = new WeakMap();
 
 function chatSuggestions(graph, dataset) {
   if (dataset === "lead") {
-    return ["Who last handled KIT-17?", "Who should I follow up with?", "Are Dev Rao and D. Rao the same person?"];
+    return ["Who last handled KIT-17?", "Who should I follow up with?", "Are Dev Rao and D. Rao the same person?",
+      "Who is Mira Sen?", "Who is named in this case?"];
   }
   const edge = graph.edges.find(row => row.decision !== "rejected");
   const endpoints = edge && [edge.source, edge.target].map(id => graph.nodes.find(node => node.id === id));
@@ -51,7 +52,7 @@ function caseChat(graph) {
     submit(input.value);
   };
   root.append(messages, form);
-  const state = { root, edge: null };
+  const state = { root, edge: null, node: null };
   caseChats.set(graph, state);
   return state;
 
@@ -69,9 +70,10 @@ function caseChat(graph) {
       const reply = await fetchJSON("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dataset, version: graph.source_version, decisions: graph.decisions,
-          reports: dataset === "custom" ? graph.reports : undefined, question, edge: state.edge })
+          reports: dataset === "custom" ? graph.reports : undefined, question, edge: state.edge, node: state.node })
       });
       if (reply.citations.length === 1 && reply.citations[0].edge) state.edge = reply.citations[0].edge;
+      if ("node" in reply) state.node = reply.node;
       const response = chatReply(graph, reply);
       messages.append(response);
       const top = response.getBoundingClientRect().top - messages.getBoundingClientRect().top;
